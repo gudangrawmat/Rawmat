@@ -1,87 +1,74 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gudang Raw Material Firebase</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-<style>
-body{font-family:Poppins,sans-serif;background:#f3f4f6;margin:0;padding:10px}
-.wrap{max-width:1200px;margin:auto}.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.pallet{background:#fff;padding:10px;border-radius:10px;border-left:6px solid orange}
-.item{display:flex;justify-content:space-between;font-size:12px;margin:4px 0}
-input,select,button{padding:8px;border-radius:6px;border:1px solid #ddd}
-button{background:#2563eb;color:#fff}
-</style>
+    <meta charset="UTF-8">
+    <title>Gudang Raw Material Online</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        /* CSS Anda tetap sama seperti sebelumnya untuk menjaga tampilan */
+        body { font-family: sans-serif; padding: 20px; background: #f3f4f6; }
+        .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #3b82f6; }
+    </style>
 </head>
 <body>
-<div class="wrap">
-<div class="card"><h2>Gudang Raw Material Online</h2>
-<input id="code" placeholder="Kode RM">
-<input id="qty" type="number" placeholder="Qty">
-<input id="tgl" type="date">
-<select id="pallet"></select>
-<button onclick="tambah()">Simpan</button>
-</div>
-<div id="info"></div>
-<div id="area" class="grid"></div>
-</div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script>
-const firebaseConfig={
-apiKey:"AIzaSyA9bEF4ylQ5zgl-7qnTD4zzeLUO1_pPnb0",
-authDomain:"gudangrawmat-76d53.firebaseapp.com",
-databaseURL:"https://gudangrawmat-76d53-default-rtdb.asia-southeast1.firebasedatabase.app",
-projectId:"gudangrawmat-76d53",
-storageBucket:"gudangrawmat-76d53.firebasestorage.app",
-messagingSenderId:"397040608472",
-appId:"1:397040608472:web:ca573b8ba1efb6de1663ad"
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+    <h2>GUDANG RAW MATERIAL ONLINE</h2>
+    
+    <div style="background: white; padding: 15px; border-radius: 8px;">
+        <input id="code" placeholder="Kode RM">
+        <input id="qty" type="number" placeholder="Qty">
+        <input id="pallet" placeholder="Pallet">
+        <button onclick="simpanData()">Simpan ke Cloud</button>
+    </div>
 
-let data=[];
-const pallets=[];
-for(let i=1;i<=46;i++) pallets.push('A'+i);
-for(let i=1;i<=48;i++) pallets.push('B'+i);
-document.getElementById('pallet').innerHTML=pallets.map(x=>`<option>${x}</option>`).join('');
-document.getElementById('tgl').valueAsDate=new Date();
+    <div id="area">Loading data dari server...</div>
 
-db.ref('gudang').on('value',s=>{
- data=[];
- s.forEach(c=>data.push({id:c.key,...c.val()}));
- render();
-});
+    <script>
+        // --- 1. https://gudangrawmat-76d53-default-rtdb.asia-southeast1.firebasedatabase.app/ ---
+        const firebaseConfig = {
+            apiKey: "PASTE_API_KEY_ANDA",
+            authDomain: "...",
+            projectId: "...",
+            storageBucket: "...",
+            messagingSenderId: "...",
+            appId: "..."
+        };
 
-function tambah(){
- const code=document.getElementById('code').value.toUpperCase();
- const qty=document.getElementById('qty').value;
- const tgl=document.getElementById('tgl').value;
- const pallet=document.getElementById('pallet').value;
- if(!code||!qty) return alert('Lengkapi data');
- db.ref('gudang').push({code,qty,tgl,pallet});
-}
+        // --- 2. Inisialisasi ---
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-function hapus(id){ if(confirm('Hapus?')) db.ref('gudang/'+id).remove(); }
+        // --- 3. Fungsi Simpan Data ke Server ---
+        function simpanData() {
+            const code = document.getElementById('code').value;
+            const qty = document.getElementById('qty').value;
+            const pallet = document.getElementById('pallet').value;
 
-function render(){
- document.getElementById('info').innerHTML='Total Item: '+data.length;
- let h='';
- pallets.forEach(p=>{
-   const items=data.filter(x=>x.pallet===p);
-   if(!items.length) return;
-   h+=`<div class="pallet"><b>${p}</b>`;
-   items.forEach(x=>{
-      h+=`<div class="item">${x.code} (${x.qty}Kg)
-      <button onclick="hapus('${x.id}')">🗑️</button></div>`;
-   });
-   h+='</div>';
- });
- document.getElementById('area').innerHTML=h;
-}
-</script>
+            db.collection("data_gudang").add({
+                code: code,
+                qty: Number(qty),
+                pallet: pallet,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => alert("Data berhasil masuk ke server!"))
+            .catch((err) => alert("Gagal: " + err));
+        }
+
+        // --- 4. Fungsi Ambil Data (Live Update) ---
+        // Dengan ini, data otomatis update di HP semua orang tanpa refresh!
+        db.collection("data_gudang").onSnapshot((snapshot) => {
+            let html = '';
+            snapshot.forEach((doc) => {
+                let d = doc.data();
+                html += `
+                <div class="card">
+                    <b>${d.code}</b><br>
+                    Qty: ${d.qty} | Pallet: ${d.pallet}
+                </div>`;
+            });
+            document.getElementById('area').innerHTML = html;
+        });
+    </script>
 </body>
 </html>

@@ -7,16 +7,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
-    :root { --primary: #3b82f6; --bg: #f8fafc; }
+    :root { --primary: #3b82f6; --bg: #f3f4f6; }
     body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
     .wrap { max-width: 600px; margin: auto; }
+    .header-box { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
     .controls { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    
-    /* Perbaikan CSS agar tombol filter muncul dengan jelas */
-    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
-    .filter-btn { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 13px; font-weight: 600; }
+    .filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; }
+    .filter-btn { padding: 8px 15px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 13px; font-weight: 600; }
     .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-    
     input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
     button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -29,20 +27,17 @@
 <body>
 
 <div class="wrap">
+    <div class="header-box">GUDANG RAW MATERIAL</div>
     <div class="controls">
-        <h3 style="margin:0 0 15px 0;">Gudang Raw Material</h3>
-        
         <div class="filter-group">
             <button class="filter-btn active" onclick="setFilter('', this)">Semua</button>
-            <button class="filter-btn" onclick="setFilter('A', this)">Pallet A</button>
-            <button class="filter-btn" onclick="setFilter('B', this)">Pallet B</button>
-            <button class="filter-btn" onclick="setFilter('C', this)">Pallet C</button>
-            <button class="filter-btn" onclick="setFilter('D', this)">Pallet D</button>
-            <button class="filter-btn" onclick="setFilter('STG', this)">Staging</button>
+            <button class="filter-btn" onclick="setFilter('A', this)">A</button>
+            <button class="filter-btn" onclick="setFilter('B', this)">B</button>
+            <button class="filter-btn" onclick="setFilter('C', this)">C</button>
+            <button class="filter-btn" onclick="setFilter('D', this)">D</button>
+            <button class="filter-btn" onclick="setFilter('STG', this)">STG</button>
         </div>
-        
         <input id="cari" placeholder="🔍 Cari Kode RM..." onkeyup="render()">
-        
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
             <input id="code" placeholder="Kode RM">
             <input id="qty" type="number" placeholder="Qty (Kg)">
@@ -85,7 +80,6 @@ for(let i=1; i<=10; i++) pallets.push('C'+i);
 for(let i=1; i<=10; i++) pallets.push('D'+i);
 for(let i=1; i<=20; i++) pallets.push('STG'+i);
 
-// Update dropdown
 function updatePalletSelect() {
     let select = document.getElementById('pallet');
     select.innerHTML = pallets.map(p => {

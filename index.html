@@ -83,22 +83,10 @@ const defaultPallets = [
     ...Array.from({length:20}, (_,i)=>({name:'STG'+(i+1), limit:4}))
 ];
 
-// Inisialisasi Data
-db.ref('gudang_final').on('value', (s) => { 
-    data = s.val() || []; 
-    render(); 
-});
-
+db.ref('gudang_final').on('value', (s) => { data = s.val() || []; render(); });
 db.ref('pallets_config').on('value', (s) => { 
-    if (!s.val()) {
-        // Jika pallet kosong, buatkan otomatis
-        db.ref('pallets_config').set(defaultPallets);
-    } else {
-        palletList = s.val();
-        renderFilters(); 
-        updatePalletSelect(); 
-        render();
-    }
+    palletList = s.val() || defaultPallets; 
+    renderFilters(); updatePalletSelect(); render();
 });
 
 function renderFilters() {

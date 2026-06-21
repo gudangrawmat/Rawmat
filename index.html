@@ -11,23 +11,23 @@
     body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
     .wrap { max-width: 600px; margin: auto; }
     .controls { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    .filter-group { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; }
-    .filter-btn { padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: white; font-size: 12px; white-space: nowrap; }
+    .filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }
+    .filter-btn { padding: 8px 15px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 13px; font-weight: 600; }
     .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-    input, select, button { padding: 8px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 13px; margin-bottom: 5px; }
+    input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
     button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    .pallet-card { background: white; padding: 8px; border-radius: 8px; border-left: 4px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .pallet-title { font-weight: bold; font-size: 12px; margin-bottom: 5px; display: flex; justify-content: space-between; }
-    .item-row { font-size: 11px; padding: 4px 0; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-    .btn-action { background: none; border: none; cursor: pointer; font-size: 13px; margin-left: 5px; }
+    .pallet-card { background: white; padding: 10px; border-radius: 8px; border-left: 5px solid #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .pallet-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .item-row { font-size: 12px; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+    .btn-action { background: #f1f5f9; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 3px; }
 </style>
 </head>
 <body>
 
 <div class="wrap">
     <div class="controls">
-        <h3 style="margin:0 0 10px 0;">Gudang Online</h3>
+        <h3 style="margin:0 0 15px 0;">Gudang Online</h3>
         <div class="filter-group" id="filterNav">
             <button class="filter-btn active" onclick="setFilter('')">Semua</button>
             <button class="filter-btn" onclick="setFilter('A')">A</button>
@@ -37,12 +37,11 @@
             <button class="filter-btn" onclick="setFilter('STG')">Staging</button>
         </div>
         <input id="cari" placeholder="🔍 Cari Kode RM..." onkeyup="render()">
-        
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
             <input id="code" placeholder="Kode RM">
             <input id="qty" type="number" placeholder="Qty (Kg)">
             <input id="tgl" type="date">
-            <select id="pallet"></select>
+            <select id="pallet" onchange="checkCapacity()"></select>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
             <button onclick="tambah()">Simpan</button>
@@ -51,7 +50,6 @@
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
     </div>
-
     <div id="area" class="grid"></div>
 </div>
 
@@ -81,36 +79,39 @@ for(let i=1; i<=10; i++) pallets.push('C'+i);
 for(let i=1; i<=10; i++) pallets.push('D'+i);
 for(let i=1; i<=20; i++) pallets.push('STG'+i);
 
-document.getElementById('pallet').innerHTML = pallets.map(x => `<option value="${x}">${x}</option>`).join('');
+// Fungsi Update Dropdown yang cerdas
+function updatePalletSelect() {
+    let select = document.getElementById('pallet');
+    select.innerHTML = pallets.map(p => {
+        let count = data.filter(x => x.pallet == p).length;
+        let limit = getLimit(p);
+        let isDisabled = count >= limit ? 'disabled' : '';
+        let label = count >= limit ? `(Penuh)` : `(${count}/${limit})`;
+        return `<option value="${p}" ${isDisabled}>${p} ${label}</option>`;
+    }).join('');
+}
 
 db.ref('gudang_final').on('value', (snapshot) => {
     data = snapshot.val() || [];
     render();
+    updatePalletSelect(); // Update dropdown setiap data berubah
 });
 
-function save() { db.ref('gudang_final').set(data); render(); }
-
-function setFilter(f) {
-    currentFilter = f;
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.includes(f || 'Semua')));
-    render();
-}
+function save() { db.ref('gudang_final').set(data); render(); updatePalletSelect(); }
 
 function render() {
     let s = document.getElementById('cari').value.toLowerCase();
     let area = document.getElementById('area');
     area.innerHTML = '';
-    
     pallets.forEach(p => {
         if(currentFilter && !p.startsWith(currentFilter)) return;
         let items = data.filter(x => x.pallet == p);
         if(s && !items.some(x => x.code.toLowerCase().includes(s))) return;
-        if(items.length == 0 && !currentFilter) return; // Sembunyikan kosong jika tidak difilter
+        if(items.length == 0 && !currentFilter) return; 
         
         let limit = getLimit(p);
-        let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= limit ? '#ef4444' : '#60a5fa'}">
+        let html = `<div class="pallet-card" style="border-left: 5px solid ${items.length >= limit ? '#ef4444' : '#60a5fa'}">
             <div class="pallet-title">${p} <span>${items.length}/${limit}</span></div>`;
-        
         items.forEach((x, i) => {
             let idx = data.indexOf(x);
             html += `<div class="item-row">
@@ -133,7 +134,6 @@ function tambah() {
     let tgl = document.getElementById('tgl').value;
     let pallet = document.getElementById('pallet').value;
     if(!code || !qty || !tgl) return alert('Lengkapi data');
-    if(data.filter(x => x.pallet == pallet).length >= getLimit(pallet)) return alert('Pallet penuh');
     data.push({code, qty, tgl, pallet}); 
     document.getElementById('code').value = ''; save();
 }
@@ -141,24 +141,17 @@ function tambah() {
 function hapus(i) { if(confirm('Hapus?')) { data.splice(i,1); save(); } }
 function pindah(i) {
     let p = prompt('Pindah ke pallet:', data[i].pallet)?.toUpperCase();
-    if(p && pallets.includes(p) && data.filter(x => x.pallet == p).length < getLimit(p)) { data[i].pallet = p; save(); }
-    else if(p) alert('Gagal: Penuh/Tidak ada');
+    if(p && pallets.includes(p)) { data[i].pallet = p; save(); }
 }
 function edit(i) {
-    let d = data[i];
-    let newCode = prompt('Edit Kode RM:', d.code);
-    if(!newCode) return;
-    data[i].code = newCode.toUpperCase();
-    data[i].qty = prompt('Edit Qty:', d.qty) || d.qty;
-    save();
+    let newCode = prompt('Edit Kode RM:', data[i].code);
+    if(newCode) { data[i].code = newCode.toUpperCase(); save(); }
 }
-
 function exportCSV() {
     let csv = "Code,Qty,Tgl,Pallet\n";
     data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`);
     let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Gudang.csv'; a.click();
 }
-
 function importCSV(e) {
     let reader = new FileReader();
     reader.onload = function(e) {
@@ -169,6 +162,11 @@ function importCSV(e) {
         save();
     };
     reader.readAsText(e.target.files[0]);
+}
+function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.includes(f || 'Semua')));
+    render();
 }
 </script>
 </body>

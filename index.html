@@ -13,24 +13,19 @@
     .header-box { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     .controls { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
     
-    .filter-group { display: flex; gap: 4px; margin-bottom: 10px; justify-content: center; }
-    .filter-btn { padding: 5px 12px; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #475569; }
+    .filter-group { display: flex; gap: 4px; margin-bottom: 10px; justify-content: center; flex-wrap: wrap; }
+    .filter-btn { padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #475569; }
     .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
     
     input, select, button { padding: 8px; border: 1px solid #e2e8f0; border-radius: 5px; width: 100%; box-sizing: border-box; font-size: 13px; margin-bottom: 4px; }
     button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
     
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
     .pallet-title { font-weight: bold; font-size: 12px; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px; display: flex; justify-content: space-between; }
-    
-    /* Garis pemisah ditebalkan */
-    .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
-    .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
-    
-    .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
-    .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
+    .item-row { font-size: 11px; padding: 6px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
+    .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 5px; border-radius: 3px; cursor: pointer; font-size: 10px; margin-left: 2px; }
+    .del-pallet { color: #ef4444; font-size: 10px; cursor: pointer; margin-left: 5px; }
 </style>
 </head>
 <body>
@@ -38,14 +33,7 @@
 <div class="wrap">
     <div class="header-box">GUDANG RAW MATERIAL</div>
     <div class="controls">
-        <div class="filter-group">
-            <button class="filter-btn active" onclick="setFilter('', this)">All</button>
-            <button class="filter-btn" onclick="setFilter('A', this)">A</button>
-            <button class="filter-btn" onclick="setFilter('B', this)">B</button>
-            <button class="filter-btn" onclick="setFilter('C', this)">C</button>
-            <button class="filter-btn" onclick="setFilter('D', this)">D</button>
-            <button class="filter-btn" onclick="setFilter('STG', this)">STG</button>
-        </div>
+        <div class="filter-group" id="filterNav"></div>
         <input id="cari" placeholder="🔍 Cari RM..." onkeyup="render()">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <input id="code" placeholder="Kode">
@@ -56,16 +44,11 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="document.getElementById('fileInput').click()" style="background:#10b981;">Import</button>
-            <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="importCSV(event)">
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ Pallet</button>
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
     </div>
     <div id="area" class="grid"></div>
-    <div class="summary-box">
-        <div style="font-weight:bold; font-size: 12px; border-bottom:1px solid #eee; padding-bottom:3px;">Total Stok Per Item</div>
-        <div id="ringkasan" class="summary-grid"></div>
-    </div>
 </div>
 
 <script>
@@ -78,41 +61,53 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let data = [];
+let palletList = [];
 let currentFilter = '';
 document.getElementById('tgl').valueAsDate = new Date();
 
-function getLimit(p) {
-    if (p.startsWith('C')) return 9;
-    if (p.startsWith('D')) return 5;
-    return 4;
-}
-
-const pallets = [];
-for(let i=1; i<=46; i++) pallets.push('A'+i);
-for(let i=1; i<=48; i++) pallets.push('B'+i);
-for(let i=1; i<=10; i++) pallets.push('C'+i);
-for(let i=1; i<=10; i++) pallets.push('D'+i);
-for(let i=1; i<=20; i++) pallets.push('STG'+i);
-
-function updatePalletSelect() {
-    let select = document.getElementById('pallet');
-    select.innerHTML = pallets.map(p => {
-        let count = data.filter(x => x.pallet == p).length;
-        let limit = getLimit(p);
-        return `<option value="${p}" ${count >= limit ? 'disabled' : ''}>${p} ${count >= limit ? '(Full)' : '('+count+'/'+limit+')'}</option>`;
-    }).join('');
-}
-
-db.ref('gudang_final').on('value', (snapshot) => {
-    data = snapshot.val() || [];
+// Load data utama dan daftar pallet
+db.ref('gudang_final').on('value', (s) => { data = s.val() || []; render(); });
+db.ref('pallets_config').on('value', (s) => { 
+    palletList = s.val() || [{name: 'A1', limit: 4}, {name: 'B1', limit: 4}]; 
+    renderFilters();
     updatePalletSelect();
     render();
 });
 
-function save() { db.ref('gudang_final').set(data); render(); updatePalletSelect(); }
+function renderFilters() {
+    let nav = document.getElementById('filterNav');
+    let filters = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+    nav.innerHTML = filters.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}', this)">${f}</button>`).join('');
+}
 
+function updatePalletSelect() {
+    let select = document.getElementById('pallet');
+    select.innerHTML = palletList.map(p => {
+        let count = data.filter(x => x.pallet == p.name).length;
+        return `<option value="${p.name}" ${count >= p.limit ? 'disabled' : ''}>${p.name} (${count}/${p.limit})</option>`;
+    }).join('');
+}
+
+function addPallet() {
+    let name = prompt("Nama Pallet (Contoh: C1):");
+    let limit = prompt("Kapasitas:");
+    if(name && limit) {
+        palletList.push({name: name.toUpperCase(), limit: parseInt(limit)});
+        db.ref('pallets_config').set(palletList);
+    }
+}
+
+function deletePallet(name) {
+    if(data.find(x => x.pallet == name)) return alert('Pallet tidak kosong!');
+    if(confirm('Hapus pallet ' + name + '?')) {
+        palletList = palletList.filter(p => p.name !== name);
+        db.ref('pallets_config').set(palletList);
+    }
+}
+
+function save() { db.ref('gudang_final').set(data); render(); }
 function setFilter(f, btn) {
-    currentFilter = f;
+    currentFilter = f == 'All' ? '' : f;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     render();
@@ -123,24 +118,19 @@ function render() {
     let area = document.getElementById('area');
     area.innerHTML = '';
     
-    let stok = {};
-    pallets.forEach(p => {
-        if(currentFilter && !p.startsWith(currentFilter)) return;
-        let items = data.filter(x => x.pallet == p);
+    palletList.forEach(p => {
+        if(currentFilter && !p.name.startsWith(currentFilter)) return;
+        let items = data.filter(x => x.pallet == p.name);
         if(s && !items.some(x => x.code.toLowerCase().includes(s))) return;
-        if(items.length == 0 && !currentFilter) return; 
         
-        let limit = getLimit(p);
-        let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= limit ? '#ef4444' : '#60a5fa'}">
-            <div class="pallet-title">${p} <span>${items.length}/${limit}</span></div>`;
+        let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
+            <div class="pallet-title">${p.name} (${items.length}/${p.limit}) <span class="del-pallet" onclick="deletePallet('${p.name}')">❌</span></div>`;
         items.forEach((x, i) => {
             let idx = data.indexOf(x);
-            stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
             html += `<div class="item-row">
                 <span><b>${x.code}</b> ${x.qty}Kg <small>(${x.tgl})</small></span>
                 <div>
                     <button class="btn-action" onclick="pindah(${idx})">🚚</button>
-                    <button class="btn-action" onclick="edit(${idx})">✏️</button>
                     <button class="btn-action" onclick="hapus(${idx})">🗑️</button>
                 </div>
             </div>`;
@@ -148,12 +138,6 @@ function render() {
         html += `</div>`;
         area.innerHTML += html;
     });
-
-    let ringkasanHtml = '';
-    Object.keys(stok).sort().forEach(k => {
-        ringkasanHtml += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`;
-    });
-    document.getElementById('ringkasan').innerHTML = ringkasanHtml;
 }
 
 function tambah() {
@@ -162,39 +146,22 @@ function tambah() {
     let tgl = document.getElementById('tgl').value;
     let pallet = document.getElementById('pallet').value;
     let jumlah = parseInt(document.getElementById('jumlah').value) || 1;
+    let pObj = palletList.find(p => p.name == pallet);
     
-    if(!code || !qty || !tgl) return alert('Lengkapi data!');
-    if(data.filter(x => x.pallet == pallet).length + jumlah > getLimit(pallet)) return alert('Pallet tidak muat!');
-    
+    if(data.filter(x => x.pallet == pallet).length + jumlah > pObj.limit) return alert('Penuh!');
     for(let i=0; i<jumlah; i++) data.push({code, qty, tgl, pallet}); 
-    document.getElementById('code').value = ''; 
     save();
 }
 
-function hapus(i) { if(confirm('Hapus item?')) { data.splice(i,1); save(); } }
+function hapus(i) { data.splice(i,1); save(); }
 function pindah(i) {
     let p = prompt('Pindah ke pallet:', data[i].pallet)?.toUpperCase();
-    if(p && pallets.includes(p)) { data[i].pallet = p; save(); }
-}
-function edit(i) {
-    let newCode = prompt('Edit Kode RM:', data[i].code);
-    if(newCode) { data[i].code = newCode.toUpperCase(); save(); }
+    if(p && palletList.find(x => x.name == p)) { data[i].pallet = p; save(); }
 }
 function exportCSV() {
     let csv = "Code,Qty,Tgl,Pallet\n";
     data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`);
     let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Gudang.csv'; a.click();
-}
-function importCSV(e) {
-    let reader = new FileReader();
-    reader.onload = function(e) {
-        e.target.result.split('\n').forEach(line => {
-            let [code, qty, tgl, pallet] = line.split(',');
-            if(code && qty) data.push({code, qty, tgl, pallet});
-        });
-        save();
-    };
-    reader.readAsText(e.target.files[0]);
 }
 </script>
 </body>

@@ -11,14 +11,17 @@
     body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
     .wrap { max-width: 600px; margin: auto; }
     .controls { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    .filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }
-    .filter-btn { padding: 8px 15px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 13px; font-weight: 600; }
+    
+    /* Perbaikan CSS agar tombol filter muncul dengan jelas */
+    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+    .filter-btn { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 13px; font-weight: 600; }
     .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    
     input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
     button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .pallet-card { background: white; padding: 10px; border-radius: 8px; border-left: 5px solid #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .pallet-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .pallet-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 5px; }
     .item-row { font-size: 12px; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; }
     .btn-action { background: #f1f5f9; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 3px; }
 </style>
@@ -27,21 +30,24 @@
 
 <div class="wrap">
     <div class="controls">
-        <h3 style="margin:0 0 15px 0;">Gudang Online</h3>
-        <div class="filter-group" id="filterNav">
-            <button class="filter-btn active" onclick="setFilter('')">Semua</button>
-            <button class="filter-btn" onclick="setFilter('A')">A</button>
-            <button class="filter-btn" onclick="setFilter('B')">B</button>
-            <button class="filter-btn" onclick="setFilter('C')">C</button>
-            <button class="filter-btn" onclick="setFilter('D')">D</button>
-            <button class="filter-btn" onclick="setFilter('STG')">Staging</button>
+        <h3 style="margin:0 0 15px 0;">Gudang Raw Material</h3>
+        
+        <div class="filter-group">
+            <button class="filter-btn active" onclick="setFilter('', this)">Semua</button>
+            <button class="filter-btn" onclick="setFilter('A', this)">Pallet A</button>
+            <button class="filter-btn" onclick="setFilter('B', this)">Pallet B</button>
+            <button class="filter-btn" onclick="setFilter('C', this)">Pallet C</button>
+            <button class="filter-btn" onclick="setFilter('D', this)">Pallet D</button>
+            <button class="filter-btn" onclick="setFilter('STG', this)">Staging</button>
         </div>
+        
         <input id="cari" placeholder="🔍 Cari Kode RM..." onkeyup="render()">
+        
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
             <input id="code" placeholder="Kode RM">
             <input id="qty" type="number" placeholder="Qty (Kg)">
             <input id="tgl" type="date">
-            <select id="pallet" onchange="checkCapacity()"></select>
+            <select id="pallet"></select>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
             <button onclick="tambah()">Simpan</button>
@@ -79,30 +85,36 @@ for(let i=1; i<=10; i++) pallets.push('C'+i);
 for(let i=1; i<=10; i++) pallets.push('D'+i);
 for(let i=1; i<=20; i++) pallets.push('STG'+i);
 
-// Fungsi Update Dropdown yang cerdas
+// Update dropdown
 function updatePalletSelect() {
     let select = document.getElementById('pallet');
     select.innerHTML = pallets.map(p => {
         let count = data.filter(x => x.pallet == p).length;
         let limit = getLimit(p);
-        let isDisabled = count >= limit ? 'disabled' : '';
-        let label = count >= limit ? `(Penuh)` : `(${count}/${limit})`;
-        return `<option value="${p}" ${isDisabled}>${p} ${label}</option>`;
+        return `<option value="${p}" ${count >= limit ? 'disabled' : ''}>${p} ${count >= limit ? '(Penuh)' : '('+count+'/'+limit+')'}</option>`;
     }).join('');
 }
 
 db.ref('gudang_final').on('value', (snapshot) => {
     data = snapshot.val() || [];
+    updatePalletSelect();
     render();
-    updatePalletSelect(); // Update dropdown setiap data berubah
 });
 
 function save() { db.ref('gudang_final').set(data); render(); updatePalletSelect(); }
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+}
 
 function render() {
     let s = document.getElementById('cari').value.toLowerCase();
     let area = document.getElementById('area');
     area.innerHTML = '';
+    
     pallets.forEach(p => {
         if(currentFilter && !p.startsWith(currentFilter)) return;
         let items = data.filter(x => x.pallet == p);
@@ -162,11 +174,6 @@ function importCSV(e) {
         save();
     };
     reader.readAsText(e.target.files[0]);
-}
-function setFilter(f) {
-    currentFilter = f;
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.includes(f || 'Semua')));
-    render();
 }
 </script>
 </body>

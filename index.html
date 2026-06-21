@@ -14,7 +14,6 @@
     .controls { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
     
     .filter-group { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 10px; padding-bottom: 5px; scrollbar-width: none; }
-    .filter-group::-webkit-scrollbar { display: none; }
     .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #475569; }
     .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
     
@@ -75,7 +74,6 @@ let palletList = [];
 let currentFilter = '';
 document.getElementById('tgl').valueAsDate = new Date();
 
-// Daftar LENGKAP Pallet Anda
 const defaultPallets = [
     ...Array.from({length:46}, (_,i)=>({name:'A'+(i+1), limit:4})),
     ...Array.from({length:48}, (_,i)=>({name:'B'+(i+1), limit:4})),
@@ -85,11 +83,22 @@ const defaultPallets = [
     ...Array.from({length:20}, (_,i)=>({name:'STG'+(i+1), limit:4}))
 ];
 
-db.ref('gudang_final').on('value', (s) => { data = s.val() || []; render(); });
+// Inisialisasi Data
+db.ref('gudang_final').on('value', (s) => { 
+    data = s.val() || []; 
+    render(); 
+});
+
 db.ref('pallets_config').on('value', (s) => { 
-    // Jika data di database kosong, gunakan daftar lengkap ini
-    palletList = s.val() || defaultPallets; 
-    renderFilters(); updatePalletSelect(); render();
+    if (!s.val()) {
+        // Jika pallet kosong, buatkan otomatis
+        db.ref('pallets_config').set(defaultPallets);
+    } else {
+        palletList = s.val();
+        renderFilters(); 
+        updatePalletSelect(); 
+        render();
+    }
 });
 
 function renderFilters() {

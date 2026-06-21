@@ -22,7 +22,6 @@
         .pallet-title { font-weight: bold; font-size: 12px; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px; display: flex; justify-content: space-between; }
         .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
-        .del-pallet { color: #ef4444; cursor: pointer; margin-left: 5px; font-weight: bold; }
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
         .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
@@ -44,8 +43,8 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak</button>
-            <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
+            <button onclick="resetPallets()" style="background:#ef4444;">Reset Rak</button>
         </div>
     </div>
     <div id="area" class="grid"></div>
@@ -82,6 +81,12 @@
         renderFilters(); updatePalletSelect(); render();
     });
 
+    function resetPallets() {
+        if(confirm("Yakin ingin mengembalikan semua rak ke default (A1-A46, B1-B48, dll)? Data barang tidak hilang.")) {
+            db.ref('pallets_config').set(defaultPallets);
+        }
+    }
+
     function renderFilters() {
         let nav = document.getElementById('filterNav');
         let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
@@ -94,18 +99,10 @@
     }
 
     function addPallet() {
-        let name = prompt("Nama Pallet:");
+        let name = prompt("Nama Pallet (Misal: A47):");
         let limit = prompt("Kapasitas:");
         if(name && limit) {
             palletList.push({name: name.toUpperCase(), limit: parseInt(limit)});
-            db.ref('pallets_config').set(palletList);
-        }
-    }
-
-    function deletePallet(name) {
-        if(data.find(x => x.pallet == name)) return alert('Pallet masih ada barang!');
-        if(confirm('Hapus ' + name + '?')) {
-            palletList = palletList.filter(p => p.name !== name);
             db.ref('pallets_config').set(palletList);
         }
     }
@@ -124,12 +121,12 @@
             if(currentFilter && !p.name.startsWith(currentFilter)) return;
             let items = data.filter(x => x.pallet == p.name);
             let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
-                <div class="pallet-title">${p.name} (${items.length}/${p.limit}) <span class="del-pallet" onclick="deletePallet('${p.name}')">✕</span></div>`;
+                <div class="pallet-title">${p.name} (${items.length}/${p.limit})</div>`;
             items.forEach((x, i) => {
                 let idx = data.indexOf(x);
                 stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
                 html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg</span>
-                <div><button class="btn-action" onclick="pindah(${idx})">🚚</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
+                <button class="btn-action" onclick="hapus(${idx})">🗑️</button></div>`;
             });
             area.innerHTML += html + `</div>`;
         });
@@ -149,15 +146,6 @@
     }
 
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data); }
-    function pindah(i) {
-        let p = prompt('Pindah ke pallet:', data[i].pallet)?.toUpperCase();
-        if(p && palletList.find(x => x.name == p)) { data[i].pallet = p; db.ref('gudang_final').set(data); }
-    }
-    function exportCSV() {
-        let csv = "Code,Qty,Tgl,Pallet\n";
-        data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`);
-        let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Gudang.csv'; a.click();
-    }
 </script>
 </body>
 </html>

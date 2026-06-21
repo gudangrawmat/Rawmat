@@ -28,6 +28,10 @@
     .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
     .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
     .del-pallet { color: #ef4444; cursor: pointer; margin-left: 5px; font-weight: bold; }
+    
+    .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
+    .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -51,6 +55,10 @@
         </div>
     </div>
     <div id="area" class="grid"></div>
+    <div class="summary-box">
+        <div style="font-weight:bold; font-size: 12px; border-bottom:1px solid #eee; padding-bottom:3px;">Total Stok Per Item</div>
+        <div id="ringkasan" class="summary-grid"></div>
+    </div>
 </div>
 
 <script>
@@ -125,6 +133,7 @@ function render() {
     let s = document.getElementById('cari').value.toLowerCase();
     let area = document.getElementById('area');
     area.innerHTML = '';
+    let stok = {};
     
     palletList.forEach(p => {
         if(currentFilter && !p.name.startsWith(currentFilter)) return;
@@ -135,6 +144,7 @@ function render() {
             <div class="pallet-title">${p.name} (${items.length}/${p.limit}) <span class="del-pallet" onclick="deletePallet('${p.name}')">✕</span></div>`;
         items.forEach((x, i) => {
             let idx = data.indexOf(x);
+            stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
             html += `<div class="item-row">
                 <span><b>${x.code}</b> ${x.qty}Kg <small>(${x.tgl})</small></span>
                 <div>
@@ -146,6 +156,12 @@ function render() {
         html += `</div>`;
         area.innerHTML += html;
     });
+
+    let ringkasanHtml = '';
+    Object.keys(stok).sort().forEach(k => {
+        ringkasanHtml += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`;
+    });
+    document.getElementById('ringkasan').innerHTML = ringkasanHtml;
 }
 
 function tambah() {

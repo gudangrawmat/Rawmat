@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUDANG RAW MATERIAL</title>
+    <title>GUDANG IBC</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
@@ -24,19 +24,19 @@
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
         .icon-btn { cursor: pointer; font-size: 14px; margin-left: 5px; }
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 5px; margin-top: 5px; }
         .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
     </style>
 </head>
 <body>
 
 <div class="wrap">
-    <div class="header-box">GUDANG RAW MATERIAL</div>
+    <div class="header-box">GUDANG IBC</div>
     <div class="controls">
         <div class="filter-group" id="filterNav"></div>
-        <input id="cari" placeholder="🔍 Cari Kode RM..." onkeyup="render()">
+        <input id="cari" placeholder="🔍 Cari IBC..." onkeyup="render()">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
-            <input id="code" placeholder="Kode">
+            <input id="code" placeholder="IBC">
             <input id="qty" type="number" placeholder="Kg">
             <input id="jumlah" type="number" placeholder="Jmlh">
             <input id="tgl" type="date" style="grid-column: span 1;">
@@ -44,7 +44,7 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ IBC Baru</button>
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
         <button onclick="document.getElementById('fileInput').click()" style="background:#10b981; margin-top:5px;">Import CSV</button>
@@ -69,7 +69,7 @@
     let data = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
 
-    db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); updatePalletSelect(); });
+    db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
     db.ref('pallets_config').on('value', s => { palletList = s.val() || []; renderFilters(); updatePalletSelect(); render(); });
 
     function renderFilters() {
@@ -80,7 +80,7 @@
 
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
-        select.innerHTML = '<option value="">Pilih Rak...</option>' + palletList
+        select.innerHTML = '<option value="">Pilih IBC...</option>' + palletList
             .filter(p => data.filter(x => x.pallet == p.name).length < p.limit)
             .map(p => `<option value="${p.name}">${p.name} (${data.filter(x => x.pallet == p.name).length}/${p.limit})</option>`).join('');
     }
@@ -99,7 +99,12 @@
             
             if (searchTerm !== "" && searchedItems.length === 0) return;
             
-            items.forEach(x => stok[x.code] = (stok[x.code] || 0) + Number(x.qty));
+            // Perbaikan Logika Stok: Menghitung Pcs dan Kg
+            items.forEach(x => {
+                if(!stok[x.code]) stok[x.code] = { count: 0, kg: 0 };
+                stok[x.code].count += 1;
+                stok[x.code].kg += Number(x.qty);
+            });
             
             let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
                 <div class="pallet-title">${p.name} (${items.length}/${p.limit}) 
@@ -113,7 +118,10 @@
             area.innerHTML += html + `</div>`;
         });
         
-        let r = ''; Object.keys(stok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`);
+        let r = ''; 
+        Object.keys(stok).sort().forEach(k => {
+            r += `<div class="summary-item"><b>${k}</b><br>${stok[k].count} Pcs | ${stok[k].kg} Kg</div>`;
+        });
         document.getElementById('ringkasan').innerHTML = r;
     }
 
@@ -128,7 +136,8 @@
         
         if(!pallet || !code || !qty) return alert('Lengkapi data!'); 
         let pObj = palletList.find(p => p.name == pallet);
-        if(data.filter(x => x.pallet == pallet).length + jumlah > pObj.limit) return alert('Rak tidak muat! Sisa kapasitas: ' + (pObj.limit - data.filter(x => x.pallet == pallet).length)); 
+        
+        if(data.filter(x => x.pallet == pallet).length + jumlah > pObj.limit) return alert('IBC tidak muat! Kapasitas maksimal: ' + pObj.limit); 
         
         for(let i = 0; i < jumlah; i++) {
             data.push({code, qty, tgl, pallet});
@@ -139,12 +148,12 @@
         document.getElementById('jumlah').value = '';
     }
 
-    function addPallet() { let n=prompt("Nama Rak:"); let l=prompt("Kapasitas:"); if(n&&l) { palletList.push({name:n.toUpperCase(), limit:parseInt(l)}); db.ref('pallets_config').set(palletList); } }
-    function renamePallet(oldName) { let newName = prompt("Ubah nama rak:", oldName); if(newName) { palletList.find(x=>x.name==oldName).name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x=>{if(x.pallet==oldName) x.pallet=newName.toUpperCase();}); db.ref('gudang_final').set(data); } }
-    function deletePallet(name) { if(data.find(x=>x.pallet==name)) return alert('Rak harus kosong!'); if(confirm('Hapus?')) { palletList = palletList.filter(p=>p.name!=name); db.ref('pallets_config').set(palletList); } }
-    function editItem(i) { let c=prompt("Edit Kode:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data); } }
+    function addPallet() { let n = prompt("Nama IBC:"); if(n) { palletList.push({name: n.toUpperCase(), limit: 1}); db.ref('pallets_config').set(palletList); } }
+    function renamePallet(oldName) { let newName = prompt("Ubah nama IBC:", oldName); if(newName) { palletList.find(x=>x.name==oldName).name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x=>{if(x.pallet==oldName) x.pallet=newName.toUpperCase();}); db.ref('gudang_final').set(data); } }
+    function deletePallet(name) { if(data.find(x=>x.pallet==name)) return alert('IBC harus kosong!'); if(confirm('Hapus?')) { palletList = palletList.filter(p=>p.name!=name); db.ref('pallets_config').set(palletList); } }
+    function editItem(i) { let c=prompt("Edit IBC:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data); } }
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data).then(() => updatePalletSelect()); }
-    function pindah(i) { let p=prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase(); if(p&&palletList.find(x=>x.name==p)) { data[i].pallet=p; db.ref('gudang_final').set(data).then(() => updatePalletSelect()); } }
+    function pindah(i) { let p=prompt('Pindah ke IBC:', data[i].pallet)?.toUpperCase(); if(p&&palletList.find(x=>x.name==p)) { data[i].pallet=p; db.ref('gudang_final').set(data).then(() => updatePalletSelect()); } }
     function exportCSV() { let csv="Code,Qty,Tgl,Pallet\n"; data.forEach(x=>csv+=`${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='Data_Gudang.csv'; a.click(); }
     function importCSV(e) { let reader=new FileReader(); reader.onload=function(e){ e.target.result.split('\n').forEach((line,idx)=>{ if(idx>0&&line){ let [code,qty,tgl,pallet]=line.split(','); data.push({code,qty,tgl,pallet}); }}); db.ref('gudang_final').set(data); }; reader.readAsText(e.target.files[0]); }
 </script>

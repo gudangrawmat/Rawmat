@@ -23,6 +23,9 @@
         .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
         .icon-btn { cursor: pointer; font-size: 14px; margin-left: 5px; }
+        .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
+        .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -44,10 +47,14 @@
             <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
-        <button onclick="document.getElementById('fileInput').click()" style="background:#10b981; margin-top:5px;">Import CSV</button>
+        <button onclick="document.getElementById('fileInput').click()" style="background:#10b981;">Import Excel (CSV)</button>
         <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="importCSV(event)">
     </div>
     <div id="area" class="grid"></div>
+    <div class="summary-box">
+        <div style="font-weight:bold; font-size: 12px; border-bottom:1px solid #eee; padding-bottom:3px;">Total Stok Per Item</div>
+        <div id="ringkasan" class="summary-grid"></div>
+    </div>
 </div>
 
 <script>
@@ -62,8 +69,10 @@
     let data = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
 
+    const defaultPallets = [...Array.from({length:46}, (_,i)=>({name:'A'+(i+1), limit:4})), ...Array.from({length:48}, (_,i)=>({name:'B'+(i+1), limit:4})), ...Array.from({length:10}, (_,i)=>({name:'C'+(i+1), limit:9})), ...Array.from({length:10}, (_,i)=>({name:'D'+(i+1), limit:5})), ...Array.from({length:10}, (_,i)=>({name:'K'+(i+1), limit:1})), ...Array.from({length:20}, (_,i)=>({name:'STG'+(i+1), limit:4}))];
+
     db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
-    db.ref('pallets_config').on('value', s => { palletList = s.val() || []; renderFilters(); updatePalletSelect(); render(); });
+    db.ref('pallets_config').on('value', s => { palletList = s.val() || defaultPallets; renderFilters(); updatePalletSelect(); render(); });
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
@@ -75,12 +84,12 @@
         let select = document.getElementById('pallet');
         select.innerHTML = '<option value="">Pilih Rak...</option>' + palletList
             .filter(p => data.filter(x => x.pallet == p.name).length < p.limit)
-            .map(p => `<option value="${p.name}">${p.name} (Max:${p.limit})</option>`).join('');
+            .map(p => `<option value="${p.name}">${p.name}</option>`).join('');
     }
 
     function addPallet() {
         let name = prompt("Nama Rak Baru (Misal: A47):");
-        let limit = prompt("Kapasitas (Max barang):");
+        let limit = prompt("Kapasitas:");
         if(name && limit) { palletList.push({name: name.toUpperCase(), limit: parseInt(limit)}); db.ref('pallets_config').set(palletList); }
     }
 
@@ -100,7 +109,7 @@
     function setFilter(f) { currentFilter = f; renderFilters(); render(); }
 
     function render() {
-        let area = document.getElementById('area'); area.innerHTML = '';
+        let area = document.getElementById('area'); area.innerHTML = ''; let stok = {};
         palletList.forEach(p => {
             let prefix = p.name.replace(/[0-9]/g, '');
             if(currentFilter !== 'All' && currentFilter !== prefix) return;
@@ -112,11 +121,14 @@
                 </div>`;
             items.forEach((x, i) => {
                 let idx = data.indexOf(x);
-                html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg (${x.tgl})</span>
+                stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
+                html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg <small>(${x.tgl})</small></span>
                 <div><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="pindah(${idx})">🚚</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
             });
             area.innerHTML += html + `</div>`;
         });
+        let r = ''; Object.keys(stok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`);
+        document.getElementById('ringkasan').innerHTML = r;
     }
 
     function tambah() {
@@ -150,12 +162,18 @@
         let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Gudang.csv'; a.click();
     }
     function importCSV(e) {
-        let file = e.target.files[0]; let reader = new FileReader();
+        let file = e.target.files[0];
+        let reader = new FileReader();
         reader.onload = function(e) {
             let lines = e.target.result.split('\n');
-            lines.forEach((line, index) => { if(index > 0 && line) { let [code, qty, tgl, pallet] = line.split(','); data.push({code, qty, tgl, pallet}); }});
+            lines.forEach((line, index) => {
+                if(index == 0) return;
+                let [code, qty, tgl, pallet] = line.split(',');
+                if(code && qty) data.push({code, qty, tgl, pallet});
+            });
             db.ref('gudang_final').set(data);
-        }; reader.readAsText(file);
+        };
+        reader.readAsText(file);
     }
 </script>
 </body>

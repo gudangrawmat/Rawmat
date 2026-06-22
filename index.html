@@ -13,7 +13,7 @@
         .header-box { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .controls { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
         .filter-group { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 10px; padding-bottom: 5px; }
-        .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; }
+        .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #475569; }
         .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
         input, select, button { padding: 8px; border: 1px solid #e2e8f0; border-radius: 5px; width: 100%; box-sizing: border-box; font-size: 13px; margin-bottom: 4px; }
         button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
@@ -23,9 +23,6 @@
         .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
         .icon-btn { cursor: pointer; font-size: 14px; margin-left: 5px; }
-        .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
-        .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -34,7 +31,7 @@
     <div class="header-box">GUDANG RAW MATERIAL</div>
     <div class="controls">
         <div class="filter-group" id="filterNav"></div>
-        <input id="cari" placeholder="🔍 Cari RM..." onkeyup="render()">
+        <input id="cari" placeholder="🔍 Cari Kode RM..." onkeyup="render()">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <input id="code" placeholder="Kode">
             <input id="qty" type="number" placeholder="Kg">
@@ -44,17 +41,13 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak</button>
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
-        <button onclick="document.getElementById('fileInput').click()" style="background:#10b981;">Import Excel (CSV)</button>
+        <button onclick="document.getElementById('fileInput').click()" style="background:#10b981; margin-top:5px;">Import CSV</button>
         <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="importCSV(event)">
     </div>
     <div id="area" class="grid"></div>
-    <div class="summary-box">
-        <div style="font-weight:bold; font-size: 12px; border-bottom:1px solid #eee; padding-bottom:3px;">Total Stok Per Item</div>
-        <div id="ringkasan" class="summary-grid"></div>
-    </div>
 </div>
 
 <script>
@@ -76,6 +69,7 @@
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
+        // Pastikan SEMUA prefix selalu muncul
         let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
         nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
@@ -109,26 +103,27 @@
     function setFilter(f) { currentFilter = f; renderFilters(); render(); }
 
     function render() {
-        let area = document.getElementById('area'); area.innerHTML = ''; let stok = {};
+        let area = document.getElementById('area'); area.innerHTML = '';
+        let searchTerm = document.getElementById('cari').value.toLowerCase();
+        
         palletList.forEach(p => {
             let prefix = p.name.replace(/[0-9]/g, '');
             if(currentFilter !== 'All' && currentFilter !== prefix) return;
             
-            let items = data.filter(x => x.pallet == p.name);
+            // Filter barang berdasarkan pencarian
+            let items = data.filter(x => x.pallet == p.name && x.code.toLowerCase().includes(searchTerm));
+            
             let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
                 <div class="pallet-title">${p.name} (${items.length}/${p.limit}) 
                     <div><span onclick="renamePallet('${p.name}')" class="icon-btn">✏️</span> <span onclick="deletePallet('${p.name}')" class="icon-btn">✕</span></div>
                 </div>`;
             items.forEach((x, i) => {
                 let idx = data.indexOf(x);
-                stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
                 html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg <small>(${x.tgl})</small></span>
                 <div><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="pindah(${idx})">🚚</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
             });
             area.innerHTML += html + `</div>`;
         });
-        let r = ''; Object.keys(stok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`);
-        document.getElementById('ringkasan').innerHTML = r;
     }
 
     function tambah() {
@@ -167,9 +162,7 @@
         reader.onload = function(e) {
             let lines = e.target.result.split('\n');
             lines.forEach((line, index) => {
-                if(index == 0) return;
-                let [code, qty, tgl, pallet] = line.split(',');
-                if(code && qty) data.push({code, qty, tgl, pallet});
+                if(index > 0 && line) { let [code, qty, tgl, pallet] = line.split(','); data.push({code, qty, tgl, pallet}); }
             });
             db.ref('gudang_final').set(data);
         };

@@ -20,9 +20,9 @@
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .pallet-title { font-weight: bold; font-size: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .item-row { font-size: 11px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; margin-left: 2px; }
-        .cat-title { font-size: 14px; font-weight: bold; margin: 15px 0 5px 0; color: #1e293b; display: flex; justify-content: space-between; }
+        .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
+        .icon-btn { cursor: pointer; font-size: 14px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -41,12 +41,13 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Pallet</button>
-            <button onclick="addCat()" style="background:#059669;">+ Area</button>
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
+            <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
-        <button onclick="exportCSV()" style="background:#f59e0b; margin-top:5px;">Export CSV</button>
+        <button onclick="document.getElementById('fileInput').click()" style="background:#10b981; margin-top:5px;">Import CSV</button>
+        <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="importCSV(event)">
     </div>
-    <div id="area"></div>
+    <div id="area" class="grid"></div>
 </div>
 
 <script>
@@ -58,77 +59,64 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let data = [], pallets = [], cats = ['Area A', 'Area B'], currentFilter = 'All';
+    let data = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
 
     db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
-    db.ref('pallets').on('value', s => { pallets = s.val() || []; updatePalletSelect(); render(); });
-    db.ref('categories').on('value', s => { cats = s.val() || ['Area A', 'Area B']; renderFilters(); render(); });
+    db.ref('pallets_config').on('value', s => { palletList = s.val() || []; renderFilters(); updatePalletSelect(); render(); });
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        nav.innerHTML = ['All', ...cats].map(c => `<button class="filter-btn ${currentFilter==c?'active':''}" onclick="currentFilter='${c}'; render(); renderFilters()">${c}</button>`).join('');
+        let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+        nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
 
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
-        select.innerHTML = '<option value="">Pilih Pallet...</option>' + pallets
+        select.innerHTML = '<option value="">Pilih Rak...</option>' + palletList
             .filter(p => data.filter(x => x.pallet == p.name).length < p.limit)
-            .map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+            .map(p => `<option value="${p.name}">${p.name} (Max:${p.limit})</option>`).join('');
     }
 
     function addPallet() {
-        let name = prompt("Nama Pallet:");
-        let limit = prompt("Kapasitas:");
-        let cat = prompt("Pilih Area: " + cats.join(', '));
-        if(name && limit && cats.includes(cat)) { 
-            pallets.push({name, limit, cat}); 
-            db.ref('pallets').set(pallets); 
-        } else { alert("Nama/Area tidak valid!"); }
+        let name = prompt("Nama Rak Baru (Misal: A47):");
+        let limit = prompt("Kapasitas (Max barang):");
+        if(name && limit) { palletList.push({name: name.toUpperCase(), limit: parseInt(limit)}); db.ref('pallets_config').set(palletList); }
     }
 
-    function addCat() {
-        let name = prompt("Nama Area Baru:");
-        if(name) { cats.push(name); db.ref('categories').set(cats); }
-    }
-
-    function renameCat(oldName) {
-        let newName = prompt("Ubah nama Area " + oldName + " menjadi:", oldName);
-        if(newName) {
-            cats = cats.map(c => c == oldName ? newName : c);
-            pallets.forEach(p => { if(p.cat == oldName) p.cat = newName; });
-            db.ref('categories').set(cats);
-            db.ref('pallets').set(pallets);
+    function renamePallet(oldName) {
+        let newName = prompt("Ubah nama rak " + oldName + " menjadi:", oldName);
+        if (newName && newName !== oldName) {
+            let p = palletList.find(x => x.name == oldName);
+            if(p) { p.name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x => {if(x.pallet == oldName) x.pallet = p.name;}); db.ref('gudang_final').set(data); }
         }
     }
 
-    function render() {
-        let area = document.getElementById('area'); area.innerHTML = '';
-        cats.forEach(c => {
-            if(currentFilter !== 'All' && currentFilter !== c) return;
-            let catPallets = pallets.filter(p => p.cat == c);
-            if(catPallets.length === 0) return;
-            
-            area.innerHTML += `<div class="cat-title">${c} <span onclick="renameCat('${c}')" style="cursor:pointer; font-size:12px;">✏️</span></div>`;
-            let grid = document.createElement('div'); grid.className = 'grid';
-            
-            catPallets.forEach(p => {
-                let items = data.filter(x => x.pallet == p.name);
-                let card = document.createElement('div');
-                card.className = 'pallet-card';
-                card.innerHTML = `<div class="pallet-title">${p.name} (${items.length}/${p.limit}) <span onclick="deletePallet('${p.name}')" style="cursor:pointer">✕</span></div>`;
-                items.forEach((x, i) => {
-                    let idx = data.indexOf(x);
-                    card.innerHTML += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg</span><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div>`;
-                });
-                grid.appendChild(card);
-            });
-            area.appendChild(grid);
-        });
+    function deletePallet(name) {
+        if(data.find(x => x.pallet == name)) return alert('Kosongkan rak dulu!');
+        if(confirm('Hapus rak ' + name + '?')) { palletList = palletList.filter(p => p.name !== name); db.ref('pallets_config').set(palletList); }
     }
 
-    function deletePallet(name) {
-        if(confirm('Hapus Pallet ' + name + '?')) { pallets = pallets.filter(p => p.name !== name); db.ref('pallets').set(pallets); }
+    function setFilter(f) { currentFilter = f; renderFilters(); render(); }
+
+    function render() {
+        let area = document.getElementById('area'); area.innerHTML = '';
+        palletList.forEach(p => {
+            let prefix = p.name.replace(/[0-9]/g, '');
+            if(currentFilter !== 'All' && currentFilter !== prefix) return;
+            
+            let items = data.filter(x => x.pallet == p.name);
+            let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
+                <div class="pallet-title">${p.name} (${items.length}/${p.limit}) 
+                    <div><span onclick="renamePallet('${p.name}')" class="icon-btn">✏️</span> <span onclick="deletePallet('${p.name}')" class="icon-btn">✕</span></div>
+                </div>`;
+            items.forEach((x, i) => {
+                let idx = data.indexOf(x);
+                html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg (${x.tgl})</span>
+                <div><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="pindah(${idx})">🚚</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
+            });
+            area.innerHTML += html + `</div>`;
+        });
     }
 
     function tambah() {
@@ -136,15 +124,38 @@
         let qty = document.getElementById('qty').value;
         let tgl = document.getElementById('tgl').value;
         let pallet = document.getElementById('pallet').value;
-        if(!pallet || !code || !qty) return alert('Lengkapi data!');
+        let pObj = palletList.find(p => p.name == pallet);
+        if(!pallet) return alert('Pilih Rak yang tersedia!');
+        if(!code || !qty || !tgl) return alert('Lengkapi data!');
+        if(data.filter(x => x.pallet == pallet).length >= pObj.limit) return alert('Rak penuh!');
         data.push({code, qty, tgl, pallet});
         db.ref('gudang_final').set(data);
+        document.getElementById('code').value = '';
     }
+
+    function editItem(i) {
+        let newCode = prompt("Edit Kode:", data[i].code);
+        let newQty = prompt("Edit Kg:", data[i].qty);
+        if(newCode && newQty) { data[i].code = newCode.toUpperCase(); data[i].qty = newQty; db.ref('gudang_final').set(data); }
+    }
+
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data); }
+    function pindah(i) {
+        let p = prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase();
+        if(p && palletList.find(x => x.name == p)) { data[i].pallet = p; db.ref('gudang_final').set(data); }
+    }
     function exportCSV() {
         let csv = "Code,Qty,Tgl,Pallet\n";
         data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`);
         let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Gudang.csv'; a.click();
+    }
+    function importCSV(e) {
+        let file = e.target.files[0]; let reader = new FileReader();
+        reader.onload = function(e) {
+            let lines = e.target.result.split('\n');
+            lines.forEach((line, index) => { if(index > 0 && line) { let [code, qty, tgl, pallet] = line.split(','); data.push({code, qty, tgl, pallet}); }});
+            db.ref('gudang_final').set(data);
+        }; reader.readAsText(file);
     }
 </script>
 </body>

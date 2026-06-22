@@ -69,7 +69,7 @@
     let data = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
 
-    db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
+    db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); updatePalletSelect(); });
     db.ref('pallets_config').on('value', s => { palletList = s.val() || []; renderFilters(); updatePalletSelect(); render(); });
 
     function renderFilters() {
@@ -97,10 +97,8 @@
             let items = data.filter(x => x.pallet == p.name);
             let searchedItems = items.filter(x => x.code.toLowerCase().includes(searchTerm));
             
-            // JIKA ada pencarian DAN rak ini tidak punya barang yang cocok, jangan tampilkan
             if (searchTerm !== "" && searchedItems.length === 0) return;
             
-            // Hitung total stok (seluruh item dalam rak)
             items.forEach(x => stok[x.code] = (stok[x.code] || 0) + Number(x.qty));
             
             let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
@@ -123,10 +121,25 @@
     function addPallet() { let n=prompt("Nama Rak:"); let l=prompt("Kapasitas:"); if(n&&l) { palletList.push({name:n.toUpperCase(), limit:parseInt(l)}); db.ref('pallets_config').set(palletList); } }
     function renamePallet(oldName) { let newName = prompt("Ubah nama rak:", oldName); if(newName) { palletList.find(x=>x.name==oldName).name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x=>{if(x.pallet==oldName) x.pallet=newName.toUpperCase();}); db.ref('gudang_final').set(data); } }
     function deletePallet(name) { if(data.find(x=>x.pallet==name)) return alert('Rak harus kosong!'); if(confirm('Hapus?')) { palletList = palletList.filter(p=>p.name!=name); db.ref('pallets_config').set(palletList); } }
-    function tambah() { let code=$('#code').val().toUpperCase(); let qty=$('#qty').val(); let tgl=$('#tgl').val(); let pallet=$('#pallet').val(); if(!pallet||!code||!qty) return alert('Lengkapi data!'); if(data.filter(x=>x.pallet==pallet).length>=palletList.find(p=>p.name==pallet).limit) return alert('Rak Penuh!'); data.push({code,qty,tgl,pallet}); db.ref('gudang_final').set(data); $('#code').val(''); }
+    
+    // FUNGSI TAMBAH YANG DIPERBAIKI (Tidak pakai $)
+    function tambah() { 
+        let code = document.getElementById('code').value.toUpperCase(); 
+        let qty = document.getElementById('qty').value; 
+        let tgl = document.getElementById('tgl').value; 
+        let pallet = document.getElementById('pallet').value; 
+        
+        if(!pallet || !code || !qty) return alert('Lengkapi data!'); 
+        if(data.filter(x=>x.pallet==pallet).length >= palletList.find(p=>p.name==pallet).limit) return alert('Rak Penuh!'); 
+        
+        data.push({code,qty,tgl,pallet}); 
+        db.ref('gudang_final').set(data); 
+        document.getElementById('code').value = ''; 
+    }
+    
     function editItem(i) { let c=prompt("Edit Kode:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data); } }
-    function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data); }
-    function pindah(i) { let p=prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase(); if(p&&palletList.find(x=>x.name==p)) { data[i].pallet=p; db.ref('gudang_final').set(data); } }
+    function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data).then(() => updatePalletSelect()); }
+    function pindah(i) { let p=prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase(); if(p&&palletList.find(x=>x.name==p)) { data[i].pallet=p; db.ref('gudang_final').set(data).then(() => updatePalletSelect()); } }
     function exportCSV() { let csv="Code,Qty,Tgl,Pallet\n"; data.forEach(x=>csv+=`${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='Data_Gudang.csv'; a.click(); }
     function importCSV(e) { let reader=new FileReader(); reader.onload=function(e){ e.target.result.split('\n').forEach((line,idx)=>{ if(idx>0&&line){ let [code,qty,tgl,pallet]=line.split(','); data.push({code,qty,tgl,pallet}); }}); db.ref('gudang_final').set(data); }; reader.readAsText(e.target.files[0]); }
 </script>

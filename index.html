@@ -10,21 +10,18 @@
         :root { --primary: #3b82f6; --bg: #f3f4f6; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
         .wrap { max-width: 600px; margin: auto; }
-        .header-box { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; }
+        .header-box { background: #1e293b; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; }
         .controls { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .filter-group { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 10px; padding-bottom: 5px; }
-        .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; }
-        .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-        input, select, button { padding: 8px; border: 1px solid #e2e8f0; border-radius: 5px; width: 100%; box-sizing: border-box; font-size: 13px; margin-bottom: 4px; }
-        button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .filter-group { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #3b82f6; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #3b82f6; }
+        .filter-btn.active { background: #3b82f6; color: white; }
+        input, select, button { padding: 8px; border: 1px solid #e2e8f0; border-radius: 5px; width: 100%; margin-bottom: 4px; }
+        button { background: #3b82f6; color: white; border: none; cursor: pointer; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .pallet-title { font-weight: bold; font-size: 12px; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 2px; }
-        .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
-        .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
+        .pallet-title { font-weight: bold; font-size: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .item-row { font-size: 11px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; margin-left: 2px; }
     </style>
 </head>
 <body>
@@ -32,7 +29,7 @@
 <div class="wrap">
     <div class="header-box">GUDANG RAW MATERIAL</div>
     <div class="controls">
-        <div class="filter-group" id="filterNav"></div>
+        <div id="filterNav" class="filter-group"></div>
         <input id="cari" placeholder="🔍 Cari RM..." onkeyup="render()">
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <input id="code" placeholder="Kode">
@@ -41,17 +38,10 @@
             <input id="tgl" type="date" style="grid-column: span 1;">
             <select id="pallet" style="grid-column: span 2;"></select>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
-            <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
-            <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
-        </div>
+        <button onclick="tambah()" style="margin-top:5px;">Simpan Barang</button>
+        <button onclick="addPallet()" style="background:#8b5cf6;">+ Tambah Rak Baru</button>
     </div>
     <div id="area" class="grid"></div>
-    <div class="summary-box">
-        <div style="font-weight:bold; font-size: 12px; border-bottom:1px solid #eee; padding-bottom:3px;">Total Stok Per Item</div>
-        <div id="ringkasan" class="summary-grid"></div>
-    </div>
 </div>
 
 <script>
@@ -63,53 +53,54 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let data = [], palletList = [], currentFilter = '';
+    let data = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
 
     const defaultPallets = [...Array.from({length:46}, (_,i)=>({name:'A'+(i+1), limit:4})), ...Array.from({length:48}, (_,i)=>({name:'B'+(i+1), limit:4})), ...Array.from({length:10}, (_,i)=>({name:'C'+(i+1), limit:9})), ...Array.from({length:10}, (_,i)=>({name:'D'+(i+1), limit:5})), ...Array.from({length:10}, (_,i)=>({name:'K'+(i+1), limit:1})), ...Array.from({length:20}, (_,i)=>({name:'STG'+(i+1), limit:4}))];
 
     db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
-    db.ref('pallets_config').on('value', s => { 
-        palletList = s.val() || defaultPallets; 
-        renderFilters(); updatePalletSelect(); render();
-    });
+    db.ref('pallets_config').on('value', s => { palletList = s.val() || defaultPallets; renderFilters(); updatePalletSelect(); render(); });
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        // Filter diambil dari huruf pertama nama rak
-        let cats = ['All', ...new Set(palletList.map(p => p.name.charAt(0)))];
-        nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f || (currentFilter=='' && f=='All')?'active':''}" onclick="setFilter('${f}', this)">${f}</button>`).join('');
+        let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+        nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
 
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
-        select.innerHTML = palletList.map(p => `<option value="${p.name}">${p.name} (Max:${p.limit})</option>`).join('');
+        select.innerHTML = '<option value="">Pilih Rak...</option>' + palletList
+            .filter(p => data.filter(x => x.pallet == p.name).length < p.limit)
+            .map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    }
+
+    function addPallet() {
+        let name = prompt("Nama Rak Baru (Contoh: A47):");
+        let limit = prompt("Kapasitas (Angka):");
+        if(name && limit) { palletList.push({name: name.toUpperCase(), limit: parseInt(limit)}); db.ref('pallets_config').set(palletList); }
     }
 
     function renamePallet(oldName) {
-        let newName = prompt("Ubah nama " + oldName + " menjadi:", oldName);
+        let newName = prompt("Ubah nama rak " + oldName + " menjadi:", oldName);
         if (newName && newName !== oldName) {
             let p = palletList.find(x => x.name == oldName);
-            if (p) {
-                p.name = newName.toUpperCase();
-                db.ref('pallets_config').set(palletList);
-                data.forEach(item => { if(item.pallet == oldName) item.pallet = p.name; });
-                db.ref('gudang_final').set(data);
-            }
+            if(p) { p.name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x => {if(x.pallet == oldName) x.pallet = p.name;}); db.ref('gudang_final').set(data); }
         }
     }
 
     function deletePallet(name) {
-        if(data.find(x => x.pallet == name)) return alert('Kosongkan rak dulu!');
-        if(confirm('Hapus ' + name + '?')) { palletList = palletList.filter(p => p.name !== name); db.ref('pallets_config').set(palletList); }
+        if(data.find(x => x.pallet == name)) return alert('Rak harus kosong!');
+        if(confirm('Hapus rak ' + name + '?')) { palletList = palletList.filter(p => p.name !== name); db.ref('pallets_config').set(palletList); }
     }
 
-    function setFilter(f, btn) { currentFilter = f == 'All' ? '' : f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); render(); }
+    function setFilter(f) { currentFilter = f; renderFilters(); render(); }
 
     function render() {
-        let area = document.getElementById('area'); area.innerHTML = ''; let stok = {};
+        let area = document.getElementById('area'); area.innerHTML = '';
         palletList.forEach(p => {
-            if(currentFilter && !p.name.startsWith(currentFilter)) return;
+            let prefix = p.name.replace(/[0-9]/g, '');
+            if(currentFilter !== 'All' && currentFilter !== prefix) return;
+            
             let items = data.filter(x => x.pallet == p.name);
             let html = `<div class="pallet-card" style="border-left: 4px solid ${items.length >= p.limit ? '#ef4444' : '#60a5fa'}">
                 <div class="pallet-title">${p.name} (${items.length}/${p.limit}) 
@@ -117,14 +108,11 @@
                 </div>`;
             items.forEach((x, i) => {
                 let idx = data.indexOf(x);
-                stok[x.code] = (stok[x.code] || 0) + Number(x.qty);
-                html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg <small>(${x.tgl})</small></span>
-                <div><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="pindah(${idx})">🚚</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
+                html += `<div class="item-row"><span><b>${x.code}</b> ${x.qty}Kg (${x.tgl})</span>
+                <div><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="hapus(${idx})">🗑️</button></div></div>`;
             });
             area.innerHTML += html + `</div>`;
         });
-        let r = ''; Object.keys(stok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${stok[k]}Kg</div>`);
-        document.getElementById('ringkasan').innerHTML = r;
     }
 
     function tambah() {
@@ -133,11 +121,9 @@
         let tgl = document.getElementById('tgl').value;
         let pallet = document.getElementById('pallet').value;
         let pObj = palletList.find(p => p.name == pallet);
-        let currentCount = data.filter(x => x.pallet == pallet).length;
-        
+        if(!pallet) return alert('Pilih Rak yang tersedia!');
         if(!code || !qty || !tgl) return alert('Lengkapi data!');
-        if(currentCount >= pObj.limit) return alert('Penuh! Kapasitas rak ini hanya ' + pObj.limit);
-        
+        if(data.filter(x => x.pallet == pallet).length >= pObj.limit) return alert('Rak penuh!');
         data.push({code, qty, tgl, pallet});
         db.ref('gudang_final').set(data);
         document.getElementById('code').value = '';
@@ -145,16 +131,11 @@
 
     function editItem(i) {
         let newCode = prompt("Edit Kode:", data[i].code);
-        let newQty = prompt("Edit Jumlah (Kg):", data[i].qty);
-        let newTgl = prompt("Edit Tanggal (YYYY-MM-DD):", data[i].tgl);
-        if(newCode && newQty && newTgl) { data[i].code = newCode.toUpperCase(); data[i].qty = newQty; data[i].tgl = newTgl; db.ref('gudang_final').set(data); }
+        let newQty = prompt("Edit Kg:", data[i].qty);
+        if(newCode && newQty) { data[i].code = newCode.toUpperCase(); data[i].qty = newQty; db.ref('gudang_final').set(data); }
     }
 
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data); }
-    function pindah(i) {
-        let p = prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase();
-        if(p && palletList.find(x => x.name == p)) { data[i].pallet = p; db.ref('gudang_final').set(data); }
-    }
     function exportCSV() {
         let csv = "Code,Qty,Tgl,Pallet\n";
         data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`);

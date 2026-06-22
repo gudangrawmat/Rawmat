@@ -82,7 +82,7 @@
         let select = document.getElementById('pallet');
         select.innerHTML = '<option value="">Pilih Rak...</option>' + palletList
             .filter(p => data.filter(x => x.pallet == p.name).length < p.limit)
-            .map(p => `<option value="${p.name}">${p.name} (Max:${p.limit})</option>`).join('');
+            .map(p => `<option value="${p.name}">${p.name} (${data.filter(x => x.pallet == p.name).length}/${p.limit})</option>`).join('');
     }
 
     function render() {
@@ -118,25 +118,30 @@
     }
 
     function setFilter(f) { currentFilter = f; renderFilters(); render(); }
-    function addPallet() { let n=prompt("Nama Rak:"); let l=prompt("Kapasitas:"); if(n&&l) { palletList.push({name:n.toUpperCase(), limit:parseInt(l)}); db.ref('pallets_config').set(palletList); } }
-    function renamePallet(oldName) { let newName = prompt("Ubah nama rak:", oldName); if(newName) { palletList.find(x=>x.name==oldName).name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x=>{if(x.pallet==oldName) x.pallet=newName.toUpperCase();}); db.ref('gudang_final').set(data); } }
-    function deletePallet(name) { if(data.find(x=>x.pallet==name)) return alert('Rak harus kosong!'); if(confirm('Hapus?')) { palletList = palletList.filter(p=>p.name!=name); db.ref('pallets_config').set(palletList); } }
     
-    // FUNGSI TAMBAH YANG DIPERBAIKI (Tidak pakai $)
     function tambah() { 
         let code = document.getElementById('code').value.toUpperCase(); 
         let qty = document.getElementById('qty').value; 
         let tgl = document.getElementById('tgl').value; 
         let pallet = document.getElementById('pallet').value; 
+        let jumlah = parseInt(document.getElementById('jumlah').value) || 1;
         
         if(!pallet || !code || !qty) return alert('Lengkapi data!'); 
-        if(data.filter(x=>x.pallet==pallet).length >= palletList.find(p=>p.name==pallet).limit) return alert('Rak Penuh!'); 
+        let pObj = palletList.find(p => p.name == pallet);
+        if(data.filter(x => x.pallet == pallet).length + jumlah > pObj.limit) return alert('Rak tidak muat! Sisa kapasitas: ' + (pObj.limit - data.filter(x => x.pallet == pallet).length)); 
         
-        data.push({code,qty,tgl,pallet}); 
+        for(let i = 0; i < jumlah; i++) {
+            data.push({code, qty, tgl, pallet});
+        }
+        
         db.ref('gudang_final').set(data); 
         document.getElementById('code').value = ''; 
+        document.getElementById('jumlah').value = '';
     }
-    
+
+    function addPallet() { let n=prompt("Nama Rak:"); let l=prompt("Kapasitas:"); if(n&&l) { palletList.push({name:n.toUpperCase(), limit:parseInt(l)}); db.ref('pallets_config').set(palletList); } }
+    function renamePallet(oldName) { let newName = prompt("Ubah nama rak:", oldName); if(newName) { palletList.find(x=>x.name==oldName).name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(x=>{if(x.pallet==oldName) x.pallet=newName.toUpperCase();}); db.ref('gudang_final').set(data); } }
+    function deletePallet(name) { if(data.find(x=>x.pallet==name)) return alert('Rak harus kosong!'); if(confirm('Hapus?')) { palletList = palletList.filter(p=>p.name!=name); db.ref('pallets_config').set(palletList); } }
     function editItem(i) { let c=prompt("Edit Kode:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data); } }
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data).then(() => updatePalletSelect()); }
     function pindah(i) { let p=prompt('Pindah ke rak:', data[i].pallet)?.toUpperCase(); if(p&&palletList.find(x=>x.name==p)) { data[i].pallet=p; db.ref('gudang_final').set(data).then(() => updatePalletSelect()); } }

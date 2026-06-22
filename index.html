@@ -21,7 +21,7 @@
         .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .pallet-title { font-weight: bold; font-size: 12px; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
         .item-row { font-size: 11px; padding: 8px 0; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 3px; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 2px; }
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-top: 5px; }
         .summary-item { background: #eff6ff; padding: 5px; border-radius: 4px; text-align: center; font-size: 11px; }
@@ -43,7 +43,7 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
             <button onclick="tambah()">Simpan</button>
-            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak</button>
+            <button onclick="addPallet()" style="background:#8b5cf6;">+ Rak Baru</button>
             <button onclick="exportCSV()" style="background:#f59e0b;">Export</button>
         </div>
     </div>
@@ -69,30 +69,33 @@
     const defaultPallets = [...Array.from({length:46}, (_,i)=>({name:'A'+(i+1), limit:4})), ...Array.from({length:48}, (_,i)=>({name:'B'+(i+1), limit:4})), ...Array.from({length:10}, (_,i)=>({name:'C'+(i+1), limit:9})), ...Array.from({length:10}, (_,i)=>({name:'D'+(i+1), limit:5})), ...Array.from({length:10}, (_,i)=>({name:'K'+(i+1), limit:1})), ...Array.from({length:20}, (_,i)=>({name:'STG'+(i+1), limit:4}))];
 
     db.ref('gudang_final').on('value', s => { data = s.val() || []; render(); });
-    db.ref('pallets_config').on('value', s => { palletList = s.val() || defaultPallets; renderFilters(); updatePalletSelect(); render(); });
+    db.ref('pallets_config').on('value', s => { 
+        palletList = s.val() || defaultPallets; 
+        renderFilters(); updatePalletSelect(); render();
+    });
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+        // Filter diambil dari huruf pertama nama rak
+        let cats = ['All', ...new Set(palletList.map(p => p.name.charAt(0)))];
         nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f || (currentFilter=='' && f=='All')?'active':''}" onclick="setFilter('${f}', this)">${f}</button>`).join('');
     }
 
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
-        select.innerHTML = palletList.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
-    }
-
-    function addPallet() {
-        let name = prompt("Nama Rak Baru:");
-        let limit = prompt("Kapasitas:");
-        if(name && limit) { palletList.push({name: name.toUpperCase(), limit: parseInt(limit)}); db.ref('pallets_config').set(palletList); }
+        select.innerHTML = palletList.map(p => `<option value="${p.name}">${p.name} (Max:${p.limit})</option>`).join('');
     }
 
     function renamePallet(oldName) {
         let newName = prompt("Ubah nama " + oldName + " menjadi:", oldName);
         if (newName && newName !== oldName) {
             let p = palletList.find(x => x.name == oldName);
-            if (p) { p.name = newName.toUpperCase(); db.ref('pallets_config').set(palletList); data.forEach(item => { if(item.pallet == oldName) item.pallet = p.name; }); db.ref('gudang_final').set(data); }
+            if (p) {
+                p.name = newName.toUpperCase();
+                db.ref('pallets_config').set(palletList);
+                data.forEach(item => { if(item.pallet == oldName) item.pallet = p.name; });
+                db.ref('gudang_final').set(data);
+            }
         }
     }
 
@@ -129,7 +132,12 @@
         let qty = document.getElementById('qty').value;
         let tgl = document.getElementById('tgl').value;
         let pallet = document.getElementById('pallet').value;
-        if(!code || !qty) return alert('Lengkapi data!');
+        let pObj = palletList.find(p => p.name == pallet);
+        let currentCount = data.filter(x => x.pallet == pallet).length;
+        
+        if(!code || !qty || !tgl) return alert('Lengkapi data!');
+        if(currentCount >= pObj.limit) return alert('Penuh! Kapasitas rak ini hanya ' + pObj.limit);
+        
         data.push({code, qty, tgl, pallet});
         db.ref('gudang_final').set(data);
         document.getElementById('code').value = '';
@@ -138,7 +146,8 @@
     function editItem(i) {
         let newCode = prompt("Edit Kode:", data[i].code);
         let newQty = prompt("Edit Jumlah (Kg):", data[i].qty);
-        if(newCode && newQty) { data[i].code = newCode.toUpperCase(); data[i].qty = newQty; db.ref('gudang_final').set(data); }
+        let newTgl = prompt("Edit Tanggal (YYYY-MM-DD):", data[i].tgl);
+        if(newCode && newQty && newTgl) { data[i].code = newCode.toUpperCase(); data[i].qty = newQty; data[i].tgl = newTgl; db.ref('gudang_final').set(data); }
     }
 
     function hapus(i) { data.splice(i,1); db.ref('gudang_final').set(data); }

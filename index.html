@@ -10,7 +10,7 @@
         :root { --primary: #3b82f6; --bg: #f3f4f6; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
         .wrap { max-width: 600px; margin: auto; transition: max-width 0.3s; }
-        @media (min-width: 768px) { .wrap { max-width: 1000px; } .area-grid { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (min-width: 768px) { .wrap { max-width: 1000px; } }
         .header-box { background: #1d4ed8; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; }
         .nav-bar { display: flex; gap: 5px; margin-bottom: 15px; }
         .nav-btn { flex: 1; padding: 10px; background: #e2e8f0; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
@@ -24,14 +24,22 @@
         button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; }
+        
+        /* Layout */
         .area-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .pallet-card { background: white; padding: 8px; border-radius: 6px; border-left: 4px solid #60a5fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 8px; }
-        .pallet-title { font-weight: bold; font-size: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 5px; border-radius: 3px; cursor: pointer; font-size: 10px; }
+        .pallet-card { background: white; padding: 10px; border-radius: 8px; border-left: 6px solid #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
+        /* Tampilan Lebar untuk IBC */
+        .ibc-wide { grid-column: span 2; border-left: 6px solid #8b5cf6; } 
+        
+        .pallet-title { font-weight: bold; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 4px; }
         .btn-delete { background: #fee2e2; color: #ef4444; }
         .report-card { background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 8px; }
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid #cbd5e1; }
         .summary-item { background: #eff6ff; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; border: 1px solid #bfdbfe; }
+        
+        /* IBC Scroll */
+        .ibc-scroll { max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -43,7 +51,11 @@
         <input id="inputName" placeholder="Nama Rak">
         <input id="inputLimit" type="number" placeholder="Kapasitas">
         <input id="inputLoc" placeholder="Lokasi">
-        <div style="display:flex; gap:10px;">
+        <select id="inputType">
+            <option value="Normal">Normal</option>
+            <option value="IBC">IBC (Lebar)</option>
+        </select>
+        <div style="display:flex; gap:10px; margin-top: 10px;">
             <button onclick="saveRackData()" style="background:#22c55e;">Simpan</button>
             <button onclick="closeModal()" style="background:#64748b;">Batal</button>
         </div>
@@ -106,22 +118,24 @@
     db.ref('pallets_config').on('value', s => { palletList = s.val() || []; refreshAll(); });
 
     function saveOpName(v) { localStorage.setItem('opName', v); }
-    function openRackModal(type, name = '', limit = 4, loc = '') {
+    function openRackModal(type, name = '', limit = 4, loc = '', pType = 'Normal') {
         document.getElementById('rackModal').style.display = 'flex';
         document.getElementById('modalTitle').innerText = type === 'add' ? 'Tambah Rak' : 'Edit Rak';
         document.getElementById('editOriginalName').value = type === 'add' ? '' : name;
         document.getElementById('inputName').value = name;
         document.getElementById('inputLimit').value = limit;
         document.getElementById('inputLoc').value = loc;
+        document.getElementById('inputType').value = pType;
     }
     function closeModal() { document.getElementById('rackModal').style.display = 'none'; }
     function saveRackData() {
         let name = document.getElementById('inputName').value.toUpperCase();
         let limit = parseInt(document.getElementById('inputLimit').value) || 4;
         let loc = document.getElementById('inputLoc').value;
+        let type = document.getElementById('inputType').value;
         let oldName = document.getElementById('editOriginalName').value;
-        if(oldName) { let p = palletList.find(x => x.name === oldName); p.name = name; p.limit = limit; p.lokasi = loc; }
-        else { palletList.push({name, limit, lokasi: loc}); }
+        if(oldName) { let p = palletList.find(x => x.name === oldName); p.name = name; p.limit = limit; p.lokasi = loc; p.type = type; }
+        else { palletList.push({name, limit, lokasi: loc, type}); }
         db.ref('pallets_config').set(palletList); closeModal();
     }
     function showPage(p) {
@@ -143,8 +157,8 @@
         let options = '<option value="">Pilih Rak/IBC...</option>';
         palletList.forEach(p => {
             let count = data.filter(x => x.pallet == p.name).length;
-            let label = p.name + (p.name.startsWith('IBC') ? '' : ' (' + count + '/' + (p.limit || 4) + ')');
-            if (p.name.startsWith('IBC') || count < (p.limit || 4)) options += `<option value="${p.name}">${label}</option>`;
+            let label = p.name + ' (' + count + '/' + (p.limit || 4) + ')';
+            if (count < (p.limit || 4)) options += `<option value="${p.name}">${label}</option>`;
         });
         select.innerHTML = options;
     }
@@ -157,13 +171,28 @@
             if (term === "" && currentFilter !== 'All' && currentFilter !== prefix) return;
             let items = data.filter(x => x.pallet == p.name);
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
+            
+            // SORT: Oldest first
+            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
+
             if (term !== "" && filtered.length === 0) return;
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
             });
-            let html = `<div class="pallet-card"><div class="pallet-title">${p.name} <small>(${p.lokasi || 'Umum'})</small> <div class="pallet-btns"><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit || 4}, '${p.lokasi || ''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
-            filtered.forEach((x, i) => { let idx = data.indexOf(x); html += `<div style="font-size:11px; padding:4px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between;"><span><b>${x.code}</b> ${x.qty}Kg<br><small>In: ${x.tgl}</small></span><div><button class="btn-action" onclick="moveItem(${idx})">🚚</button><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action" onclick="hapusStok(${idx})">🗑️</button></div></div>`; });
+            
+            // Logika class lebar
+            let cardClass = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
+            
+            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} <small>(${p.lokasi || 'Umum'})</small> <div class="pallet-btns"><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit || 4}, '${p.lokasi || ''}', '${p.type || 'Normal'}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            
+            if(p.type === 'IBC') {
+                html += `<div class="ibc-scroll">`;
+                filtered.forEach((x, i) => { let idx = data.indexOf(x); html += `<div style="font-size:11px; padding:6px; border:1px solid #e2e8f0; background:#fff; border-radius:4px; text-align:left;"><b>${x.code}</b><br>${x.qty}Kg<br><small>${x.tgl}</small><div style="display:flex; justify-content:space-between; margin-top:4px;"><button class="btn-action" onclick="moveItem(${idx})">🚚</button><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️</button></div></div>`; });
+                html += `</div>`;
+            } else {
+                filtered.forEach((x, i) => { let idx = data.indexOf(x); html += `<div style="font-size:11px; padding:6px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;"><span><b>${x.code}</b> ${x.qty}Kg <small>| In: ${x.tgl}</small></span><div style="display:flex;"><button class="btn-action" onclick="moveItem(${idx})">🚚</button><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️</button></div></div>`; });
+            }
             area.innerHTML += html + `</div>`;
         });
         let r = ''; Object.keys(totalStok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
@@ -180,16 +209,14 @@
     function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
-        let searchInput = document.getElementById('cariKeluar');
-        let term = searchInput ? searchInput.value.toLowerCase() : "";
-        
+        let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
         let filtered = riwayatKeluar.filter(x => 
             (x.code || "").toLowerCase().includes(term) || 
             (x.operator || "").toLowerCase().includes(term) || 
             (x.tglKeluar || "").includes(term) ||
             (x.tglMasuk || "").includes(term)
         );
-        
+        filtered.sort((a, b) => new Date(a.tglMasuk) - new Date(b.tglMasuk));
         list.innerHTML = filtered.map((x, i) => { 
             let actualIndex = riwayatKeluar.indexOf(x); 
             return `<div class="report-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam}) | <b>Op: ${x.operator}</b></small><br><button class="btn-action btn-delete" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`; 

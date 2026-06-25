@@ -25,10 +25,8 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; }
         
-        /* Layout */
         .area-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .pallet-card { background: white; padding: 10px; border-radius: 8px; border-left: 6px solid #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
-        /* Tampilan Lebar untuk IBC */
         .ibc-wide { grid-column: span 2; border-left: 6px solid #8b5cf6; } 
         
         .pallet-title { font-weight: bold; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
@@ -37,8 +35,6 @@
         .report-card { background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 8px; }
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid #cbd5e1; }
         .summary-item { background: #eff6ff; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; border: 1px solid #bfdbfe; }
-        
-        /* IBC Scroll */
         .ibc-scroll { max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
     </style>
 </head>
@@ -51,6 +47,7 @@
         <input id="inputName" placeholder="Nama Rak">
         <input id="inputLimit" type="number" placeholder="Kapasitas">
         <input id="inputLoc" placeholder="Lokasi">
+        <input id="inputQty" type="number" placeholder="Jumlah Rak (Default 1)" value="1">
         <select id="inputType">
             <option value="Normal">Normal</option>
             <option value="IBC">IBC (Lebar)</option>
@@ -126,6 +123,7 @@
         document.getElementById('inputLimit').value = limit;
         document.getElementById('inputLoc').value = loc;
         document.getElementById('inputType').value = pType;
+        document.getElementById('inputQty').style.display = (type === 'add') ? 'block' : 'none';
     }
     function closeModal() { document.getElementById('rackModal').style.display = 'none'; }
     function saveRackData() {
@@ -133,9 +131,19 @@
         let limit = parseInt(document.getElementById('inputLimit').value) || 4;
         let loc = document.getElementById('inputLoc').value;
         let type = document.getElementById('inputType').value;
+        let qty = parseInt(document.getElementById('inputQty').value) || 1;
         let oldName = document.getElementById('editOriginalName').value;
-        if(oldName) { let p = palletList.find(x => x.name === oldName); p.name = name; p.limit = limit; p.lokasi = loc; p.type = type; }
-        else { palletList.push({name, limit, lokasi: loc, type}); }
+        
+        if(oldName) { 
+            let p = palletList.find(x => x.name === oldName); 
+            p.name = name; p.limit = limit; p.lokasi = loc; p.type = type; 
+        } else { 
+            for(let i = 0; i < qty; i++) {
+                // Tanda - dihilangkan di sini
+                let finalName = (qty > 1) ? `${name}${i+1}` : name;
+                palletList.push({name: finalName, limit, lokasi: loc, type}); 
+            }
+        }
         db.ref('pallets_config').set(palletList); closeModal();
     }
     function showPage(p) {
@@ -146,14 +154,20 @@
         refreshAll();
     }
     function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); }
+    
+    // Sort Helper untuk angka & huruf
+    const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+
     function renderFilters() {
         let nav = document.getElementById('filterNav');
         let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+        cats.sort((a, b) => a.localeCompare(b, undefined, {numeric: true})); 
         nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
     function setFilter(f) { currentFilter = f; refreshAll(); }
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
+        palletList.sort(sortByName); 
         let options = '<option value="">Pilih Rak/IBC...</option>';
         palletList.forEach(p => {
             let count = data.filter(x => x.pallet == p.name).length;
@@ -166,13 +180,15 @@
         let area = document.getElementById('area'); area.innerHTML = '';
         let term = document.getElementById('cari').value.toLowerCase();
         let totalStok = {};
+        
+        palletList.sort(sortByName); 
+        
         palletList.forEach(p => {
             let prefix = p.name.replace(/[0-9]/g, '');
             if (term === "" && currentFilter !== 'All' && currentFilter !== prefix) return;
             let items = data.filter(x => x.pallet == p.name);
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
-            // SORT: Oldest first
             filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
 
             if (term !== "" && filtered.length === 0) return;
@@ -181,7 +197,6 @@
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
             });
             
-            // Logika class lebar
             let cardClass = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
             
             let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} <small>(${p.lokasi || 'Umum'})</small> <div class="pallet-btns"><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit || 4}, '${p.lokasi || ''}', '${p.type || 'Normal'}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;

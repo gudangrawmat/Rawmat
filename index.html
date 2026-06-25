@@ -44,7 +44,7 @@
     <div class="modal-content">
         <h3 id="modalTitle">Edit Rak</h3>
         <input type="hidden" id="editOriginalName">
-        <input id="inputName" placeholder="Nama Rak">
+        <input id="inputName" placeholder="Nama Rak (cth: A-1)">
         <input id="inputLimit" type="number" placeholder="Kapasitas">
         <input id="inputLoc" placeholder="Lokasi">
         <input id="inputQty" type="number" placeholder="Jumlah Rak (Default 1)" value="1">
@@ -139,8 +139,7 @@
             p.name = name; p.limit = limit; p.lokasi = loc; p.type = type; 
         } else { 
             for(let i = 0; i < qty; i++) {
-                // Tanda - dihilangkan di sini
-                let finalName = (qty > 1) ? `${name}${i+1}` : name;
+                let finalName = (qty > 1) ? `${name}-${i+1}` : name;
                 palletList.push({name: finalName, limit, lokasi: loc, type}); 
             }
         }
@@ -157,10 +156,16 @@
     
     // Sort Helper untuk angka & huruf
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+    
+    // Helper untuk mengambil kategori (Group)
+    function getCategory(name) {
+        let cat = name.replace(/[0-9-]/g, '');
+        return cat === '' ? 'ANGKA' : cat;
+    }
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        let cats = ['All', ...new Set(palletList.map(p => p.name.replace(/[0-9]/g, '')))];
+        let cats = ['All', ...new Set(palletList.map(p => getCategory(p.name)))];
         cats.sort((a, b) => a.localeCompare(b, undefined, {numeric: true})); 
         nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
@@ -184,8 +189,9 @@
         palletList.sort(sortByName); 
         
         palletList.forEach(p => {
-            let prefix = p.name.replace(/[0-9]/g, '');
+            let prefix = getCategory(p.name);
             if (term === "" && currentFilter !== 'All' && currentFilter !== prefix) return;
+            
             let items = data.filter(x => x.pallet == p.name);
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             

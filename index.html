@@ -44,7 +44,7 @@
     <div class="modal-content">
         <h3 id="modalTitle">Edit Rak</h3>
         <input type="hidden" id="editOriginalName">
-        <input id="inputName" placeholder="Nama Rak (cth: A-1)">
+        <input id="inputName" placeholder="Nama Rak (cth: A)">
         <input id="inputLimit" type="number" placeholder="Kapasitas">
         <input id="inputLoc" placeholder="Lokasi">
         <input id="inputQty" type="number" placeholder="Jumlah Rak (Default 1)" value="1">
@@ -154,20 +154,17 @@
     }
     function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); }
     
-    // Sort Helper untuk angka & huruf
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
-    
-    // Helper untuk mengambil kategori (Group)
-    function getCategory(name) {
-        let cat = name.replace(/[0-9-]/g, '');
-        return cat === '' ? 'ANGKA' : cat;
-    }
+    function getCategory(name) { let cat = name.replace(/[0-9]/g, ''); return cat === '' ? 'ANGKA' : cat; }
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        let cats = ['All', ...new Set(palletList.map(p => getCategory(p.name)))];
-        cats.sort((a, b) => a.localeCompare(b, undefined, {numeric: true})); 
-        nav.innerHTML = cats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
+        // Mengurutkan abjad kategori, tapi memaksa 'All' tetap di kiri
+        let cats = [...new Set(palletList.map(p => getCategory(p.name)))];
+        cats.sort((a, b) => a.localeCompare(b)); 
+        let finalCats = ['All', ...cats];
+        
+        nav.innerHTML = finalCats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
     function setFilter(f) { currentFilter = f; refreshAll(); }
     function updatePalletSelect() {
@@ -185,6 +182,20 @@
         let area = document.getElementById('area'); area.innerHTML = '';
         let term = document.getElementById('cari').value.toLowerCase();
         let totalStok = {};
+
+        // --- TAMPILKAN BARANG TANPA RAK ---
+        let orphanItems = data.map((x, i) => ({...x, originalIndex: i})).filter(x => !x.pallet || x.pallet == "");
+        if (orphanItems.length > 0) {
+            let orphanHtml = `<div class="pallet-card" style="border-left: 6px solid #ef4444; grid-column: span 2;">
+                <div class="pallet-title" style="color:#ef4444;">⚠️ BELUM ADA RAK (${orphanItems.length} Item)</div>`;
+            orphanItems.forEach(x => {
+                orphanHtml += `<div style="font-size:11px; padding:6px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <span><b>${x.code}</b> ${x.qty}Kg <small>| In: ${x.tgl}</small></span>
+                    <button class="btn-action" onclick="moveItem(${x.originalIndex})">🚚 Pindahkan</button>
+                </div>`;
+            });
+            area.innerHTML += orphanHtml + `</div>`;
+        }
         
         palletList.sort(sortByName); 
         
@@ -220,7 +231,23 @@
         document.getElementById('ringkasan').innerHTML = r;
     }
     function deletePallet(n) { if(confirm('Hapus Rak '+n+'?')) { palletList = palletList.filter(p=>p.name!=n); db.ref('pallets_config').set(palletList); } }
-    function tambah() { let code = document.getElementById('code').value.toUpperCase(); let qty = document.getElementById('qty').value; let tgl = document.getElementById('tgl').value; let pallet = document.getElementById('pallet').value; let jumlah = parseInt(document.getElementById('jumlah').value) || 1; for(let i = 0; i < jumlah; i++) data.push({code, qty, tgl, pallet}); db.ref('gudang_final').set(data).then(() => { document.getElementById('code').value=''; refreshAll(); }); }
+    
+    function tambah() { 
+        let code = document.getElementById('code').value.toUpperCase(); 
+        let qty = document.getElementById('qty').value; 
+        let tgl = document.getElementById('tgl').value; 
+        let pallet = document.getElementById('pallet').value; 
+        let jumlah = parseInt(document.getElementById('jumlah').value) || 1; 
+
+        if (!pallet) {
+            alert("Harap pilih Rak/IBC terlebih dahulu!");
+            return;
+        }
+
+        for(let i = 0; i < jumlah; i++) data.push({code, qty, tgl, pallet}); 
+        db.ref('gudang_final').set(data).then(() => { document.getElementById('code').value=''; refreshAll(); }); 
+    }
+    
     function hapusStok(i) { let item = data[i]; let now = new Date(); riwayatKeluar.push({code: item.code, qty: item.qty, tglMasuk: item.tgl, operator: document.getElementById('opName').value, tglKeluar: now.toISOString().split('T')[0], jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}); data.splice(i, 1); db.ref('gudang_final').set(data); db.ref('riwayat_keluar').set(riwayatKeluar).then(() => refreshAll()); }
     function editItem(i) { let c=prompt("Edit:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data).then(() => refreshAll()); } }
     function moveItem(i) { let newPallet = prompt("Pindahkan ke Rak/IBC mana?", data[i].pallet); if(newPallet) { data[i].pallet = newPallet.toUpperCase(); db.ref('gudang_final').set(data).then(() => refreshAll()); } }
@@ -231,12 +258,7 @@
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
-        let filtered = riwayatKeluar.filter(x => 
-            (x.code || "").toLowerCase().includes(term) || 
-            (x.operator || "").toLowerCase().includes(term) || 
-            (x.tglKeluar || "").includes(term) ||
-            (x.tglMasuk || "").includes(term)
-        );
+        let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
         filtered.sort((a, b) => new Date(a.tglMasuk) - new Date(b.tglMasuk));
         list.innerHTML = filtered.map((x, i) => { 
             let actualIndex = riwayatKeluar.indexOf(x); 

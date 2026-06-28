@@ -36,6 +36,11 @@
         .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid #cbd5e1; }
         .summary-item { background: #eff6ff; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; border: 1px solid #bfdbfe; }
         .ibc-scroll { max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+        
+        /* Layout Riwayat */
+        #listKeluar { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; align-items: start; }
+        .operator-group { display: flex; flex-direction: column; }
+        .item-card { font-size: 13px; padding: 10px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -154,15 +159,35 @@
     }
     function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); }
     
+    function syncAndRender() {
+        Promise.all([
+            db.ref('gudang_final').set(data),
+            db.ref('riwayat_keluar').set(riwayatKeluar)
+        ]).then(() => { refreshAll(); });
+    }
+    
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
-    function getCategory(name) { let cat = name.replace(/[0-9]/g, ''); return cat === '' ? 'ANGKA' : cat; }
+    
+    // Perbaikan: Kategori dikelompokkan dengan benar tanpa memotong nama
+    function getCategory(name) { 
+        if (!name) return "Lainnya";
+        let n = name.toUpperCase().trim();
+        
+        // Aturan khusus: Jika diawali 1, 2, atau 3 -> Lantai 2
+        if (n.startsWith("1") || n.startsWith("2") || n.startsWith("3")) return "Lantai 2";
+        
+        // Aturan IBC
+        if (n.startsWith("IBC")) return "IBC";
+        
+        // Aturan umum: Ambil huruf saja sebagai grup kategori (misal: "A1" -> "A")
+        let letters = n.replace(/[^A-Z]/g, '');
+        return letters.length > 0 ? letters : n; 
+    }
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        // Mengurutkan abjad kategori, tapi memaksa 'All' tetap di kiri
-        let cats = [...new Set(palletList.map(p => getCategory(p.name)))];
-        cats.sort((a, b) => a.localeCompare(b)); 
-        let finalCats = ['All', ...cats];
+        let uniqueCats = [...new Set(palletList.map(p => getCategory(p.name)))].sort();
+        let finalCats = ['All', ...uniqueCats];
         
         nav.innerHTML = finalCats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
@@ -178,24 +203,11 @@
         });
         select.innerHTML = options;
     }
+    
     function render() {
         let area = document.getElementById('area'); area.innerHTML = '';
         let term = document.getElementById('cari').value.toLowerCase();
         let totalStok = {};
-
-        // --- TAMPILKAN BARANG TANPA RAK ---
-        let orphanItems = data.map((x, i) => ({...x, originalIndex: i})).filter(x => !x.pallet || x.pallet == "");
-        if (orphanItems.length > 0) {
-            let orphanHtml = `<div class="pallet-card" style="border-left: 6px solid #ef4444; grid-column: span 2;">
-                <div class="pallet-title" style="color:#ef4444;">⚠️ BELUM ADA RAK (${orphanItems.length} Item)</div>`;
-            orphanItems.forEach(x => {
-                orphanHtml += `<div style="font-size:11px; padding:6px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                    <span><b>${x.code}</b> ${x.qty}Kg <small>| In: ${x.tgl}</small></span>
-                    <button class="btn-action" onclick="moveItem(${x.originalIndex})">🚚 Pindahkan</button>
-                </div>`;
-            });
-            area.innerHTML += orphanHtml + `</div>`;
-        }
         
         palletList.sort(sortByName); 
         
@@ -206,30 +218,56 @@
             let items = data.filter(x => x.pallet == p.name);
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
-            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
-
-            if (term !== "" && filtered.length === 0) return;
+            let unlockableItems = {};
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
+
+                if (!unlockableItems[x.code]) {
+                    unlockableItems[x.code] = x;
+                } else {
+                    let best = unlockableItems[x.code];
+                    let xDate = new Date(x.tgl);
+                    let bestDate = new Date(best.tgl);
+                    if (xDate < bestDate || (xDate.getTime() === bestDate.getTime() && Number(x.qty) < Number(best.qty))) {
+                        unlockableItems[x.code] = x;
+                    }
+                }
             });
+
+            if (term !== "" && filtered.length === 0) return;
             
             let cardClass = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
             
-            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} <small>(${p.lokasi || 'Umum'})</small> <div class="pallet-btns"><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit || 4}, '${p.lokasi || ''}', '${p.type || 'Normal'}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
-            if(p.type === 'IBC') {
-                html += `<div class="ibc-scroll">`;
-                filtered.forEach((x, i) => { let idx = data.indexOf(x); html += `<div style="font-size:11px; padding:6px; border:1px solid #e2e8f0; background:#fff; border-radius:4px; text-align:left;"><b>${x.code}</b><br>${x.qty}Kg<br><small>${x.tgl}</small><div style="display:flex; justify-content:space-between; margin-top:4px;"><button class="btn-action" onclick="moveItem(${idx})">🚚</button><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️</button></div></div>`; });
-                html += `</div>`;
-            } else {
-                filtered.forEach((x, i) => { let idx = data.indexOf(x); html += `<div style="font-size:11px; padding:6px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;"><span><b>${x.code}</b> ${x.qty}Kg <small>| In: ${x.tgl}</small></span><div style="display:flex;"><button class="btn-action" onclick="moveItem(${idx})">🚚</button><button class="btn-action" onclick="editItem(${idx})">✏️</button><button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️</button></div></div>`; });
-            }
+            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl)); 
+
+            // Render Item Card
+            filtered.forEach((x, i) => { 
+                let idx = data.indexOf(x); 
+                let isUnlocked = (x === unlockableItems[x.code]);
+                let btnAction = isUnlocked ? `<button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️ Hapus</button>` : `<span style="font-size:10px; color:#94a3b8; font-weight:bold;">🔒 Locked</span>`;
+                
+                html += `<div class="item-card">
+                            <div style="font-weight:bold; font-size:14px;">${x.code}</div>
+                            <div style="font-size:13px; color:#4b5563; margin: 4px 0;">${x.qty} Kg</div>
+                            <div style="font-size:11px; color:#6b7280;">Masuk: ${x.tgl}</div>
+                            <div style="display:flex; justify-content:flex-end; margin-top:8px; gap:4px;">
+                                <button class="btn-action" onclick="moveItem(${idx})">🚚 Pindah</button>
+                                <button class="btn-action" onclick="editItem(${idx})">✏️ Edit</button>
+                                ${btnAction}
+                            </div>
+                        </div>`; 
+            });
+            
             area.innerHTML += html + `</div>`;
         });
+        
         let r = ''; Object.keys(totalStok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
         document.getElementById('ringkasan').innerHTML = r;
     }
+    
     function deletePallet(n) { if(confirm('Hapus Rak '+n+'?')) { palletList = palletList.filter(p=>p.name!=n); db.ref('pallets_config').set(palletList); } }
     
     function tambah() { 
@@ -239,30 +277,63 @@
         let pallet = document.getElementById('pallet').value; 
         let jumlah = parseInt(document.getElementById('jumlah').value) || 1; 
 
-        if (!pallet) {
-            alert("Harap pilih Rak/IBC terlebih dahulu!");
-            return;
-        }
-
+        if (!pallet) { alert("Harap pilih Rak/IBC terlebih dahulu!"); return; }
         for(let i = 0; i < jumlah; i++) data.push({code, qty, tgl, pallet}); 
-        db.ref('gudang_final').set(data).then(() => { document.getElementById('code').value=''; refreshAll(); }); 
+        syncAndRender();
+        document.getElementById('code').value=''; 
     }
     
-    function hapusStok(i) { let item = data[i]; let now = new Date(); riwayatKeluar.push({code: item.code, qty: item.qty, tglMasuk: item.tgl, operator: document.getElementById('opName').value, tglKeluar: now.toISOString().split('T')[0], jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}); data.splice(i, 1); db.ref('gudang_final').set(data); db.ref('riwayat_keluar').set(riwayatKeluar).then(() => refreshAll()); }
-    function editItem(i) { let c=prompt("Edit:", data[i].code); let q=prompt("Edit Kg:", data[i].qty); if(c&&q) { data[i].code=c.toUpperCase(); data[i].qty=q; db.ref('gudang_final').set(data).then(() => refreshAll()); } }
-    function moveItem(i) { let newPallet = prompt("Pindahkan ke Rak/IBC mana?", data[i].pallet); if(newPallet) { data[i].pallet = newPallet.toUpperCase(); db.ref('gudang_final').set(data).then(() => refreshAll()); } }
+    function hapusStok(i) { 
+        let opName = document.getElementById('opName').value.trim();
+        if (!opName) { alert("⚠️ Peringatan: Nama Operator belum diisi! Harap isi Nama Operator sebelum menghapus barang."); return; }
+        if(!confirm("Apakah Anda yakin ingin menghapus item ini?")) return;
+        
+        let item = data[i]; 
+        let now = new Date(); 
+        riwayatKeluar.push({
+            code: item.code, qty: item.qty, tglMasuk: item.tgl, 
+            operator: opName, 
+            tglKeluar: now.toISOString().split('T')[0], 
+            jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        }); 
+        data.splice(i, 1); 
+        syncAndRender();
+    }
+    
+    function editItem(i) { 
+        let c = prompt("Edit Item:", data[i].code); 
+        let q = prompt("Edit Kg:", data[i].qty); 
+        let t = prompt("Edit Tanggal (YYYY-MM-DD):", data[i].tgl); 
+        if(c && q && t) { 
+            data[i].code = c.toUpperCase(); 
+            data[i].qty = q; 
+            data[i].tgl = t; 
+            syncAndRender(); 
+        } 
+    }
+    
+    function moveItem(i) { let newPallet = prompt("Pindahkan ke Rak/IBC mana?", data[i].pallet); if(newPallet) { data[i].pallet = newPallet.toUpperCase(); syncAndRender(); } }
     function hapusRiwayat(i) { riwayatKeluar.splice(i, 1); db.ref('riwayat_keluar').set(riwayatKeluar).then(() => renderKeluar()); }
     function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
     function importCSV(e) { let reader=new FileReader(); reader.onload=function(e){ e.target.result.split('\n').forEach((line,idx)=>{ if(idx>0&&line){ let [code,qty,tgl,pallet]=line.split(','); data.push({code,qty,tgl,pallet}); }}); db.ref('gudang_final').set(data); }; reader.readAsText(e.target.files[0]); }
     function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
+    
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
         let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
         filtered.sort((a, b) => new Date(a.tglMasuk) - new Date(b.tglMasuk));
-        list.innerHTML = filtered.map((x, i) => { 
-            let actualIndex = riwayatKeluar.indexOf(x); 
-            return `<div class="report-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam}) | <b>Op: ${x.operator}</b></small><br><button class="btn-action btn-delete" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`; 
+        
+        let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        
+        list.innerHTML = uniqueOps.map(opNameUpper => {
+            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            let html = `<div style="background:#e5e7eb; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold; color:#374151;">👤 ${opNameUpper}</div>`;
+            html += opItems.map(x => {
+                let actualIndex = riwayatKeluar.indexOf(x);
+                return `<div class="report-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
+            }).join('');
+            return `<div class="operator-group">${html}</div>`;
         }).join('');
     }
 </script>

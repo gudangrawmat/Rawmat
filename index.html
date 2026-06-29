@@ -8,39 +8,44 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #3b82f6; --bg: #f3f4f6; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 14px; }
-        .wrap { max-width: 600px; margin: auto; transition: max-width 0.3s; }
-        @media (min-width: 768px) { .wrap { max-width: 1000px; } }
-        .header-box { background: #1d4ed8; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 10px; }
-        .nav-bar { display: flex; gap: 5px; margin-bottom: 15px; }
-        .nav-btn { flex: 1; padding: 10px; background: #e2e8f0; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 15px; font-size: 14px; }
+        
+        .wrap { max-width: 100%; margin: auto; transition: max-width 0.3s; }
+        @media (min-width: 768px) { .wrap { max-width: 900px; } }
+        @media (min-width: 1200px) { .wrap { max-width: 1200px; } }
+
+        .header-box { background: #1d4ed8; color: white; padding: 20px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 15px; font-size: 1.2rem; }
+        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav-btn { flex: 1; padding: 12px; background: #e2e8f0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .nav-btn.active { background: #3b82f6; color: white; }
         .page { display: none; } .page.active { display: block; }
-        .controls { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .filter-group { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 10px; padding-bottom: 5px; }
-        .filter-btn { white-space: nowrap; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; background: white; font-size: 12px; font-weight: 600; color: #475569; }
+        .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .filter-group { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 15px; padding-bottom: 5px; }
+        .filter-btn { white-space: nowrap; padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; background: white; font-weight: 600; color: #475569; }
         .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-        input, select, button { padding: 8px; border: 1px solid #e2e8f0; border-radius: 5px; width: 100%; box-sizing: border-box; margin-bottom: 4px; }
-        button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; }
+        
+        input, select, button { padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+        button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; }
         
-        .area-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .pallet-card { background: white; padding: 10px; border-radius: 8px; border-left: 6px solid #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px; }
-        .ibc-wide { grid-column: span 2; border-left: 6px solid #8b5cf6; } 
+        .area-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 768px) { .area-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1200px) { .area-grid { grid-template-columns: repeat(3, 1fr); } }
         
-        .pallet-title { font-weight: bold; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 4px; }
+        .pallet-card { background: white; padding: 15px; border-radius: 10px; border-left: 8px solid #60a5fa; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .ibc-wide { grid-column: 1 / -1; border-left: 8px solid #8b5cf6; } 
+        
+        .pallet-title { font-weight: bold; font-size: 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; margin-left: 3px; }
         .btn-delete { background: #fee2e2; color: #ef4444; }
-        .report-card { background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 8px; }
-        .summary-box { background: white; padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid #cbd5e1; }
-        .summary-item { background: #eff6ff; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; border: 1px solid #bfdbfe; }
-        .ibc-scroll { max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
         
-        /* Layout Riwayat */
-        #listKeluar { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; align-items: start; }
-        .operator-group { display: flex; flex-direction: column; }
-        .item-card { font-size: 13px; padding: 10px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .item-card { font-size: 14px; padding: 12px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .summary-box { background: white; padding: 20px; border-radius: 12px; margin-top: 20px; border: 1px solid #cbd5e1; }
+        .summary-item { background: #eff6ff; padding: 10px; border-radius: 6px; text-align: center; font-size: 13px; border: 1px solid #bfdbfe; }
     </style>
 </head>
 <body>
@@ -49,17 +54,47 @@
     <div class="modal-content">
         <h3 id="modalTitle">Edit Rak</h3>
         <input type="hidden" id="editOriginalName">
-        <input id="inputName" placeholder="Nama Rak (cth: A)">
-        <input id="inputLimit" type="number" placeholder="Kapasitas">
-        <input id="inputLoc" placeholder="Lokasi">
-        <input id="inputQty" type="number" placeholder="Jumlah Rak (Default 1)" value="1">
+        
+        <label>Nama/ID Rak:</label>
+        <input id="inputName" placeholder="Contoh: A1, B2">
+        
+        <label>Kategori Filter:</label>
+        <input id="inputCategory" list="categoryOptions" placeholder="Pilih atau Ketik Kategori...">
+        <datalist id="categoryOptions"></datalist>
+        
+        <label>Kapasitas (Max Stok):</label>
+        <input id="inputLimit" type="number" placeholder="Contoh: 4">
+        
+        <label>Lokasi Fisik:</label>
+        <input id="inputLoc" placeholder="Contoh: Gudang Samping">
+        
+        <div id="qtyWrapper">
+            <label>Jumlah Rak (Saat Tambah Baru):</label>
+            <input id="inputQty" type="number" value="1">
+        </div>
+        
+        <label>Jenis:</label>
         <select id="inputType">
             <option value="Normal">Normal</option>
             <option value="IBC">IBC (Lebar)</option>
         </select>
-        <div style="display:flex; gap:10px; margin-top: 10px;">
+        
+        <div style="display:flex; gap:10px; margin-top: 15px;">
             <button onclick="saveRackData()" style="background:#22c55e;">Simpan</button>
-            <button onclick="closeModal()" style="background:#64748b;">Batal</button>
+            <button onclick="closeModal('rackModal')" style="background:#64748b;">Batal</button>
+        </div>
+    </div>
+</div>
+
+<div id="moveModal" class="modal">
+    <div class="modal-content">
+        <h3 id="moveTitle">Pilih Rak Tujuan</h3>
+        <input type="hidden" id="moveSource">
+        <input type="hidden" id="moveMode">
+        <select id="moveDestSelect"></select>
+        <div style="display:flex; gap:10px; margin-top: 15px;">
+            <button onclick="confirmMove()" style="background:#22c55e;">Pindahkan</button>
+            <button onclick="closeModal('moveModal')" style="background:#64748b;">Batal</button>
         </div>
     </div>
 </div>
@@ -75,16 +110,23 @@
         <div class="controls">
             <input id="opName" placeholder="👤 Nama Operator" onchange="saveOpName(this.value)">
             <div class="filter-group" id="filterNav"></div>
-            <input id="cari" placeholder="🔍 Cari Item..." onkeyup="render()">
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px;">
+            
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="render()" style="margin-bottom:0; width: 60%;">
+                <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center;">
+                    <input type="checkbox" id="hideEmpty" onchange="render()" style="width: auto; margin: 0 5px 0 0;"> Hide Kosong
+                </label>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px;">
                 <input id="code" placeholder="Item">
                 <input id="qty" type="number" placeholder="Kg">
                 <input id="jumlah" type="number" placeholder="Jmlh">
-                <input id="tgl" type="date" style="grid-column: span 1;">
-                <select id="pallet" style="grid-column: span 2;"></select>
+                <input id="tgl" type="date">
+                <select id="pallet" style="grid-column: span 1;"></select>
             </div>
-            <button onclick="tambah()">Simpan Masuk</button>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px; margin-top:5px;">
+            <button onclick="tambah()" style="width: 100%; margin-top: 10px;">Simpan Masuk</button>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-top:10px;">
                 <button onclick="openRackModal('add')" style="background:#8b5cf6;">+ Rak Baru</button>
                 <button onclick="exportStokCSV()" style="background:#f59e0b;">Exp CSV</button>
                 <button onclick="document.getElementById('fileInput').click()" style="background:#10b981;">Imp CSV</button>
@@ -93,8 +135,8 @@
         </div>
         <div id="area" class="area-grid"></div>
         <div class="summary-box">
-            <div style="font-weight:bold; border-bottom:1px solid #ddd; padding-bottom:5px;">Total Stok (Hasil Filter)</div>
-            <div id="ringkasan" style="display:grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;"></div>
+            <div style="font-weight:bold; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:10px;">Total Stok (Hasil Filter)</div>
+            <div id="ringkasan" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;"></div>
         </div>
     </div>
 
@@ -103,7 +145,7 @@
             <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op)..." onkeyup="renderKeluar()">
             <button onclick="exportKeluarCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
         </div>
-        <div id="listKeluar"></div>
+        <div id="listKeluar" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
     </div>
 </div>
 
@@ -120,19 +162,60 @@
     db.ref('pallets_config').on('value', s => { palletList = s.val() || []; refreshAll(); });
 
     function saveOpName(v) { localStorage.setItem('opName', v); }
-    function openRackModal(type, name = '', limit = 4, loc = '', pType = 'Normal') {
+    
+    // Fungsi untuk mengupdate daftar kategori di modal
+    function updateCategoryOptions() {
+        let datalist = document.getElementById('categoryOptions');
+        let categories = [...new Set(palletList.map(p => p.category).filter(c => c))].sort();
+        datalist.innerHTML = categories.map(c => `<option value="${c}">`).join('');
+    }
+    
+    function openRackModal(type, name = '', limit = 4, loc = '', pType = 'Normal', category = '') {
+        updateCategoryOptions(); // Update pilihan sebelum buka modal
         document.getElementById('rackModal').style.display = 'flex';
         document.getElementById('modalTitle').innerText = type === 'add' ? 'Tambah Rak' : 'Edit Rak';
         document.getElementById('editOriginalName').value = type === 'add' ? '' : name;
         document.getElementById('inputName').value = name;
+        document.getElementById('inputCategory').value = category || '';
         document.getElementById('inputLimit').value = limit;
         document.getElementById('inputLoc').value = loc;
         document.getElementById('inputType').value = pType;
         document.getElementById('inputQty').style.display = (type === 'add') ? 'block' : 'none';
+        document.getElementById('qtyWrapper').style.display = (type === 'add') ? 'block' : 'none';
     }
-    function closeModal() { document.getElementById('rackModal').style.display = 'none'; }
+    
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    
+    function showMoveModal(mode, source) {
+        document.getElementById('moveSource').value = source;
+        document.getElementById('moveMode').value = mode;
+        let select = document.getElementById('moveDestSelect');
+        select.innerHTML = '';
+        palletList.filter(p => p.name !== source).forEach(p => {
+            select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+        });
+        document.getElementById('moveModal').style.display = 'flex';
+    }
+
+    function confirmMove() {
+        let source = document.getElementById('moveSource').value;
+        let mode = document.getElementById('moveMode').value;
+        let dest = document.getElementById('moveDestSelect').value;
+        
+        if (mode === 'rack') {
+            data.forEach(item => { if (item.pallet === source) item.pallet = dest; });
+            palletList = palletList.filter(p => p.name !== source);
+            db.ref('pallets_config').set(palletList);
+        } else {
+            data[parseInt(source)].pallet = dest;
+        }
+        syncAndRender();
+        closeModal('moveModal');
+    }
+    
     function saveRackData() {
         let name = document.getElementById('inputName').value.toUpperCase();
+        let category = document.getElementById('inputCategory').value.trim();
         let limit = parseInt(document.getElementById('inputLimit').value) || 4;
         let loc = document.getElementById('inputLoc').value;
         let type = document.getElementById('inputType').value;
@@ -141,15 +224,20 @@
         
         if(oldName) { 
             let p = palletList.find(x => x.name === oldName); 
-            p.name = name; p.limit = limit; p.lokasi = loc; p.type = type; 
+            if(p) {
+                data.forEach(item => { if(item.pallet === oldName) item.pallet = name; });
+                p.name = name; p.category = category; p.limit = limit; p.lokasi = loc; p.type = type; 
+                db.ref('gudang_final').set(data);
+            }
         } else { 
             for(let i = 0; i < qty; i++) {
                 let finalName = (qty > 1) ? `${name}-${i+1}` : name;
-                palletList.push({name: finalName, limit, lokasi: loc, type}); 
+                palletList.push({name: finalName, category, limit, lokasi: loc, type}); 
             }
         }
-        db.ref('pallets_config').set(palletList); closeModal();
+        db.ref('pallets_config').set(palletList); closeModal('rackModal');
     }
+    
     function showPage(p) {
         document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(x => x.classList.remove('active'));
@@ -157,41 +245,28 @@
         document.getElementById('btn'+p.charAt(0).toUpperCase()+p.slice(1)).classList.add('active');
         refreshAll();
     }
+    
     function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); }
-    
-    function syncAndRender() {
-        Promise.all([
-            db.ref('gudang_final').set(data),
-            db.ref('riwayat_keluar').set(riwayatKeluar)
-        ]).then(() => { refreshAll(); });
-    }
-    
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
     
-    // Perbaikan: Kategori dikelompokkan dengan benar tanpa memotong nama
-    function getCategory(name) { 
-        if (!name) return "Lainnya";
-        let n = name.toUpperCase().trim();
-        
-        // Aturan khusus: Jika diawali 1, 2, atau 3 -> Lantai 2
+    function getCategory(p) { 
+        if (p.category && p.category.trim() !== "") return p.category.toUpperCase();
+        let n = p.name.toUpperCase().trim();
         if (n.startsWith("1") || n.startsWith("2") || n.startsWith("3")) return "Lantai 2";
-        
-        // Aturan IBC
         if (n.startsWith("IBC")) return "IBC";
-        
-        // Aturan umum: Ambil huruf saja sebagai grup kategori (misal: "A1" -> "A")
         let letters = n.replace(/[^A-Z]/g, '');
-        return letters.length > 0 ? letters : n; 
+        return letters.length > 0 ? letters : "Lainnya"; 
     }
 
     function renderFilters() {
         let nav = document.getElementById('filterNav');
-        let uniqueCats = [...new Set(palletList.map(p => getCategory(p.name)))].sort();
+        let uniqueCats = [...new Set(palletList.map(p => getCategory(p)))].sort();
         let finalCats = ['All', ...uniqueCats];
-        
         nav.innerHTML = finalCats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
+    
     function setFilter(f) { currentFilter = f; refreshAll(); }
+    
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
         palletList.sort(sortByName); 
@@ -207,43 +282,38 @@
     function render() {
         let area = document.getElementById('area'); area.innerHTML = '';
         let term = document.getElementById('cari').value.toLowerCase();
+        let hideEmpty = document.getElementById('hideEmpty').checked;
         let totalStok = {};
         
         palletList.sort(sortByName); 
-        
         palletList.forEach(p => {
-            let prefix = getCategory(p.name);
+            let prefix = getCategory(p);
+            let items = data.filter(x => x.pallet == p.name);
+            
+            if (hideEmpty && items.length === 0) return;
             if (term === "" && currentFilter !== 'All' && currentFilter !== prefix) return;
             
-            let items = data.filter(x => x.pallet == p.name);
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
             let unlockableItems = {};
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
-
-                if (!unlockableItems[x.code]) {
-                    unlockableItems[x.code] = x;
-                } else {
+                if (!unlockableItems[x.code]) { unlockableItems[x.code] = x; } 
+                else {
                     let best = unlockableItems[x.code];
-                    let xDate = new Date(x.tgl);
-                    let bestDate = new Date(best.tgl);
-                    if (xDate < bestDate || (xDate.getTime() === bestDate.getTime() && Number(x.qty) < Number(best.qty))) {
-                        unlockableItems[x.code] = x;
-                    }
+                    let xDate = new Date(x.tgl); let bestDate = new Date(best.tgl);
+                    if (xDate < bestDate || (xDate.getTime() === bestDate.getTime() && Number(x.qty) < Number(best.qty))) { unlockableItems[x.code] = x; }
                 }
             });
 
             if (term !== "" && filtered.length === 0) return;
             
             let cardClass = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
-            
-            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
             filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl)); 
 
-            // Render Item Card
             filtered.forEach((x, i) => { 
                 let idx = data.indexOf(x); 
                 let isUnlocked = (x === unlockableItems[x.code]);
@@ -254,13 +324,12 @@
                             <div style="font-size:13px; color:#4b5563; margin: 4px 0;">${x.qty} Kg</div>
                             <div style="font-size:11px; color:#6b7280;">Masuk: ${x.tgl}</div>
                             <div style="display:flex; justify-content:flex-end; margin-top:8px; gap:4px;">
-                                <button class="btn-action" onclick="moveItem(${idx})">🚚 Pindah</button>
+                                <button class="btn-action" onclick="showMoveModal('item', ${idx})">🚚 Pindah</button>
                                 <button class="btn-action" onclick="editItem(${idx})">✏️ Edit</button>
                                 ${btnAction}
                             </div>
                         </div>`; 
             });
-            
             area.innerHTML += html + `</div>`;
         });
         
@@ -268,7 +337,17 @@
         document.getElementById('ringkasan').innerHTML = r;
     }
     
-    function deletePallet(n) { if(confirm('Hapus Rak '+n+'?')) { palletList = palletList.filter(p=>p.name!=n); db.ref('pallets_config').set(palletList); } }
+    function deletePallet(n) { 
+        let itemsInPallet = data.filter(x => x.pallet === n);
+        if (itemsInPallet.length > 0) {
+            alert('⚠️ Rak "' + n + '" tidak bisa dihapus karena masih ada barang di dalamnya! Pindahkan barang terlebih dahulu.');
+            return;
+        }
+        if(confirm('Hapus Rak '+n+'?')) { 
+            palletList = palletList.filter(p => p.name != n); 
+            db.ref('pallets_config').set(palletList); 
+        } 
+    }
     
     function tambah() { 
         let code = document.getElementById('code').value.toUpperCase(); 
@@ -312,7 +391,13 @@
         } 
     }
     
-    function moveItem(i) { let newPallet = prompt("Pindahkan ke Rak/IBC mana?", data[i].pallet); if(newPallet) { data[i].pallet = newPallet.toUpperCase(); syncAndRender(); } }
+    function syncAndRender() {
+        Promise.all([
+            db.ref('gudang_final').set(data),
+            db.ref('riwayat_keluar').set(riwayatKeluar)
+        ]).then(() => { refreshAll(); });
+    }
+
     function hapusRiwayat(i) { riwayatKeluar.splice(i, 1); db.ref('riwayat_keluar').set(riwayatKeluar).then(() => renderKeluar()); }
     function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
     function importCSV(e) { let reader=new FileReader(); reader.onload=function(e){ e.target.result.split('\n').forEach((line,idx)=>{ if(idx>0&&line){ let [code,qty,tgl,pallet]=line.split(','); data.push({code,qty,tgl,pallet}); }}); db.ref('gudang_final').set(data); }; reader.readAsText(e.target.files[0]); }

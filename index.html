@@ -4,48 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GUDANG RAW MATERIAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #3b82f6; --bg: #f3f4f6; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 15px; font-size: 14px; }
+        :root { 
+            --primary: #3b82f6; 
+            --bg: #f8fafc; 
+            --text: #1e293b;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; font-size: 14px; }
         
         .wrap { max-width: 100%; margin: auto; transition: max-width 0.3s; }
         @media (min-width: 768px) { .wrap { max-width: 900px; } }
-        @media (min-width: 1200px) { .wrap { max-width: 1200px; } }
 
-        .header-box { background: #1d4ed8; color: white; padding: 20px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 15px; font-size: 1.2rem; }
-        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; }
-        .nav-btn { flex: 1; padding: 12px; background: #e2e8f0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .nav-btn.active { background: #3b82f6; color: white; }
+        .header-box { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: 700; margin-bottom: 20px; font-size: 1.3rem; box-shadow: var(--shadow); }
+        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 5px; border-radius: 12px; box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
+        .nav-btn { flex: 1; padding: 12px; background: transparent; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; color: #64748b; }
+        .nav-btn.active { background: var(--primary); color: white; }
+        
         .page { display: none; } .page.active { display: block; }
-        .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .controls { background: white; padding: 20px; border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid #e2e8f0; }
         
         .filter-group { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 15px; padding-bottom: 5px; }
-        .filter-btn { white-space: nowrap; padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; background: white; font-weight: 600; color: #475569; }
-        .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .filter-btn { white-space: nowrap; padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; background: white; font-weight: 600; color: #475569; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
-        input, select, button { padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 6px; }
-        button { background: #3b82f6; color: white; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+        input, select, button { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; width: 100%; box-sizing: border-box; margin-bottom: 8px; font-family: inherit; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
         button:hover { opacity: 0.9; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         
         .area-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
         @media (min-width: 768px) { .area-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (min-width: 1200px) { .area-grid { grid-template-columns: repeat(3, 1fr); } }
         
-        .pallet-card { background: white; padding: 15px; border-radius: 10px; border-left: 8px solid #60a5fa; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .ibc-wide { grid-column: 1 / -1; border-left: 8px solid #8b5cf6; } 
+        .pallet-card { background: white; padding: 16px; border-radius: 12px; border-left: 6px solid var(--primary); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
+        .ibc-wide { grid-column: 1 / -1; border-left: 6px solid #8b5cf6; } 
         
-        .pallet-title { font-weight: bold; font-size: 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; margin-left: 3px; }
-        .btn-delete { background: #fee2e2; color: #ef4444; }
+        .pallet-title { font-weight: 700; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; margin-left: 4px; color: #475569; }
+        .btn-delete { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
         
-        .item-card { font-size: 14px; padding: 12px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .summary-box { background: white; padding: 20px; border-radius: 12px; margin-top: 20px; border: 1px solid #cbd5e1; }
-        .summary-item { background: #eff6ff; padding: 10px; border-radius: 6px; text-align: center; font-size: 13px; border: 1px solid #bfdbfe; }
+        .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #fdfdfd; border-radius: 8px; margin-bottom: 8px; }
+        .summary-box { background: white; padding: 20px; border-radius: 16px; margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
+        .summary-item { background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; border: 1px solid #bfdbfe; color: #1e40af; }
     </style>
 </head>
 <body>
@@ -54,31 +59,26 @@
     <div class="modal-content">
         <h3 id="modalTitle">Edit Rak</h3>
         <input type="hidden" id="editOriginalName">
-        
         <label>Nama/ID Rak:</label>
         <input id="inputName" placeholder="Contoh: A1, B2">
-        
         <label>Kategori Filter:</label>
-        <input id="inputCategory" list="categoryOptions" placeholder="Pilih atau Ketik Kategori...">
-        <datalist id="categoryOptions"></datalist>
-        
+        <div style="display:flex;gap:8px;">
+            <select id="inputCategory" style="flex:1"><option value="">-- Pilih Kategori --</option></select>
+            <button type="button" style="width:auto;background:#10b981" onclick="tambahKategoriBaru()">+</button>
+        </div>
         <label>Kapasitas (Max Stok):</label>
         <input id="inputLimit" type="number" placeholder="Contoh: 4">
-        
         <label>Lokasi Fisik:</label>
         <input id="inputLoc" placeholder="Contoh: Gudang Samping">
-        
         <div id="qtyWrapper">
             <label>Jumlah Rak (Saat Tambah Baru):</label>
             <input id="inputQty" type="number" value="1">
         </div>
-        
         <label>Jenis:</label>
         <select id="inputType">
             <option value="Normal">Normal</option>
             <option value="IBC">IBC (Lebar)</option>
         </select>
-        
         <div style="display:flex; gap:10px; margin-top: 15px;">
             <button onclick="saveRackData()" style="background:#22c55e;">Simpan</button>
             <button onclick="closeModal('rackModal')" style="background:#64748b;">Batal</button>
@@ -110,14 +110,12 @@
         <div class="controls">
             <input id="opName" placeholder="👤 Nama Operator" onchange="saveOpName(this.value)">
             <div class="filter-group" id="filterNav"></div>
-            
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="render()" style="margin-bottom:0; width: 60%;">
+                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="debounceRender()" style="margin-bottom:0; width: 60%;">
                 <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center;">
                     <input type="checkbox" id="hideEmpty" onchange="render()" style="width: auto; margin: 0 5px 0 0;"> Hide Kosong
                 </label>
             </div>
-            
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px;">
                 <input id="code" placeholder="Item">
                 <input id="qty" type="number" placeholder="Kg">
@@ -142,10 +140,11 @@
 
     <div id="page-keluar" class="page">
         <div class="controls">
-            <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op)..." onkeyup="renderKeluar()">
+            <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op)..." onkeyup="debounceRenderKeluar()">
             <button onclick="exportKeluarCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
         </div>
         <div id="listKeluar" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
+        <div id="navKeluar" style="margin-top:20px; display:flex; justify-content:center; gap:10px;"></div>
     </div>
 </div>
 
@@ -153,6 +152,23 @@
     const firebaseConfig = { apiKey: "AIzaSyA9bEF4ylQ5zgl-7qnTD4zzeLUO1_pPnb0", databaseURL: "https://gudangrawmat-76d53-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "gudangrawmat-76d53" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // --- PAGINATION & DEBOUNCE LOGIC ---
+    let itemsPerPage = 5; 
+    let currentPages = {}; 
+    let pageKeluar = 0;
+    let timerCari, timerCariKeluar;
+
+    function debounceRender() {
+        clearTimeout(timerCari);
+        timerCari = setTimeout(() => { render(); }, 300);
+    }
+    function debounceRenderKeluar() {
+        clearTimeout(timerCariKeluar);
+        timerCariKeluar = setTimeout(() => { pageKeluar = 0; renderKeluar(); }, 300);
+    }
+    // -------------------------------
+
     let data = [], riwayatKeluar = [], palletList = [], currentFilter = 'All';
     document.getElementById('tgl').valueAsDate = new Date();
     document.getElementById('opName').value = localStorage.getItem('opName') || '';
@@ -163,15 +179,23 @@
 
     function saveOpName(v) { localStorage.setItem('opName', v); }
     
-    // Fungsi untuk mengupdate daftar kategori di modal
     function updateCategoryOptions() {
-        let datalist = document.getElementById('categoryOptions');
-        let categories = [...new Set(palletList.map(p => p.category).filter(c => c))].sort();
-        datalist.innerHTML = categories.map(c => `<option value="${c}">`).join('');
+        let s=document.getElementById('inputCategory');
+        let cats=[...new Set(palletList.map(p=>p.category).filter(c=>c&&c.trim()))].sort();
+        s.innerHTML='<option value="">-- Pilih Kategori --</option>';
+        cats.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`);
+    }
+    function tambahKategoriBaru(){
+        let n=prompt('Nama kategori baru:');
+        if(!n)return;
+        n=n.trim();
+        let s=document.getElementById('inputCategory');
+        if(![...s.options].some(o=>o.value===n)){s.innerHTML+=`<option value="${n}">${n}</option>`;}
+        s.value=n;
     }
     
     function openRackModal(type, name = '', limit = 4, loc = '', pType = 'Normal', category = '') {
-        updateCategoryOptions(); // Update pilihan sebelum buka modal
+        updateCategoryOptions();
         document.getElementById('rackModal').style.display = 'flex';
         document.getElementById('modalTitle').innerText = type === 'add' ? 'Tambah Rak' : 'Edit Rak';
         document.getElementById('editOriginalName').value = type === 'add' ? '' : name;
@@ -280,7 +304,9 @@
     }
     
     function render() {
-        let area = document.getElementById('area'); area.innerHTML = '';
+        let area = document.getElementById('area'); 
+        let fragment = document.createDocumentFragment(); 
+        area.innerHTML = '';
         let term = document.getElementById('cari').value.toLowerCase();
         let hideEmpty = document.getElementById('hideEmpty').checked;
         let totalStok = {};
@@ -295,30 +321,26 @@
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
-            let unlockableItems = {};
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
-                if (!unlockableItems[x.code]) { unlockableItems[x.code] = x; } 
-                else {
-                    let best = unlockableItems[x.code];
-                    let xDate = new Date(x.tgl); let bestDate = new Date(best.tgl);
-                    if (xDate < bestDate || (xDate.getTime() === bestDate.getTime() && Number(x.qty) < Number(best.qty))) { unlockableItems[x.code] = x; }
-                }
             });
 
             if (term !== "" && filtered.length === 0) return;
             
-            let cardClass = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
-            let html = `<div class="${cardClass}"><div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            // PAGINATION LOGIC
+            if (currentPages[p.name] === undefined) currentPages[p.name] = 0;
+            let totalPages = Math.ceil(filtered.length / itemsPerPage);
+            let start = currentPages[p.name] * itemsPerPage;
+            let displayItems = filtered.slice(start, start + itemsPerPage);
             
-            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl)); 
-
-            filtered.forEach((x, i) => { 
+            let card = document.createElement('div');
+            card.className = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
+            
+            let html = `<div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            
+            displayItems.forEach(x => { 
                 let idx = data.indexOf(x); 
-                let isUnlocked = (x === unlockableItems[x.code]);
-                let btnAction = isUnlocked ? `<button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️ Hapus</button>` : `<span style="font-size:10px; color:#94a3b8; font-weight:bold;">🔒 Locked</span>`;
-                
                 html += `<div class="item-card">
                             <div style="font-weight:bold; font-size:14px;">${x.code}</div>
                             <div style="font-size:13px; color:#4b5563; margin: 4px 0;">${x.qty} Kg</div>
@@ -326,15 +348,34 @@
                             <div style="display:flex; justify-content:flex-end; margin-top:8px; gap:4px;">
                                 <button class="btn-action" onclick="showMoveModal('item', ${idx})">🚚 Pindah</button>
                                 <button class="btn-action" onclick="editItem(${idx})">✏️ Edit</button>
-                                ${btnAction}
+                                <button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️ Hapus</button>
                             </div>
                         </div>`; 
             });
-            area.innerHTML += html + `</div>`;
+            
+            if (totalPages > 1) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                            <button class="btn-action" onclick="changePage('${p.name}', -1)">Prev</button>
+                            <span style="font-size:11px;">${currentPages[p.name]+1}/${totalPages}</span>
+                            <button class="btn-action" onclick="changePage('${p.name}', 1)">Next</button>
+                        </div>`;
+            }
+            
+            card.innerHTML = html;
+            fragment.appendChild(card);
         });
+        area.appendChild(fragment);
         
         let r = ''; Object.keys(totalStok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
         document.getElementById('ringkasan').innerHTML = r;
+    }
+
+    function changePage(palletName, dir) {
+        let items = data.filter(x => x.pallet == palletName);
+        let filtered = items.filter(x => x.code.toLowerCase().includes(document.getElementById('cari').value.toLowerCase()));
+        let maxPage = Math.ceil(filtered.length / itemsPerPage);
+        currentPages[palletName] = Math.max(0, Math.min(currentPages[palletName] + dir, maxPage - 1));
+        render();
     }
     
     function deletePallet(n) { 
@@ -405,21 +446,44 @@
     
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
+        let nav = document.getElementById('navKeluar');
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
         let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
-        filtered.sort((a, b) => new Date(a.tglMasuk) - new Date(b.tglMasuk));
         
-        let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        // Sorting: tglKeluar terbaru di atas
+        filtered.sort((a, b) => new Date(b.tglKeluar) - new Date(a.tglKeluar));
+
+        let totalPages = Math.ceil(filtered.length / itemsPerPage);
+        let start = pageKeluar * itemsPerPage;
+        let displayItems = filtered.slice(start, start + itemsPerPage);
         
-        list.innerHTML = uniqueOps.map(opNameUpper => {
-            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+        let fragment = document.createDocumentFragment();
+        let uniqueOps = [...new Set(displayItems.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        
+        uniqueOps.forEach(opNameUpper => {
+            let opItems = displayItems.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            let div = document.createElement('div');
             let html = `<div style="background:#e5e7eb; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold; color:#374151;">👤 ${opNameUpper}</div>`;
             html += opItems.map(x => {
                 let actualIndex = riwayatKeluar.indexOf(x);
-                return `<div class="report-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
+                return `<div class="item-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
             }).join('');
-            return `<div class="operator-group">${html}</div>`;
-        }).join('');
+            div.innerHTML = html;
+            fragment.appendChild(div);
+        });
+        
+        list.innerHTML = '';
+        list.appendChild(fragment);
+        
+        nav.innerHTML = totalPages > 1 ? `<button class="btn-action" style="width:auto" onclick="changePageKeluar(-1)">Prev</button><span>${pageKeluar+1}/${totalPages}</span><button class="btn-action" style="width:auto" onclick="changePageKeluar(1)">Next</button>` : "";
+    }
+    
+    function changePageKeluar(dir) {
+        let term = document.getElementById('cariKeluar').value.toLowerCase();
+        let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term));
+        let maxPage = Math.ceil(filtered.length / itemsPerPage);
+        pageKeluar = Math.max(0, Math.min(pageKeluar + dir, maxPage - 1));
+        renderKeluar();
     }
 </script>
 </body>

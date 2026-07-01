@@ -144,7 +144,6 @@
             <button onclick="exportKeluarCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
         </div>
         <div id="listKeluar" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
-        <div id="navKeluar" style="margin-top:20px; display:flex; justify-content:center; gap:10px;"></div>
     </div>
 </div>
 
@@ -156,7 +155,7 @@
     // --- PAGINATION & DEBOUNCE LOGIC ---
     let itemsPerPage = 5; 
     let currentPages = {}; 
-    let pageKeluar = 0;
+    let pageKeluar = {}; // Halaman per operator
     let timerCari, timerCariKeluar;
 
     function debounceRender() {
@@ -165,7 +164,7 @@
     }
     function debounceRenderKeluar() {
         clearTimeout(timerCariKeluar);
-        timerCariKeluar = setTimeout(() => { pageKeluar = 0; renderKeluar(); }, 300);
+        timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300);
     }
     // -------------------------------
 
@@ -446,43 +445,47 @@
     
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
-        let nav = document.getElementById('navKeluar');
+        list.innerHTML = '';
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
         let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
-        
-        // Sorting: tglKeluar terbaru di atas
         filtered.sort((a, b) => new Date(b.tglKeluar) - new Date(a.tglKeluar));
 
-        let totalPages = Math.ceil(filtered.length / itemsPerPage);
-        let start = pageKeluar * itemsPerPage;
-        let displayItems = filtered.slice(start, start + itemsPerPage);
-        
-        let fragment = document.createDocumentFragment();
-        let uniqueOps = [...new Set(displayItems.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
         
         uniqueOps.forEach(opNameUpper => {
-            let opItems = displayItems.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            
+            // PAGINATION PER OPERATOR
+            if (pageKeluar[opNameUpper] === undefined) pageKeluar[opNameUpper] = 0;
+            let totalPages = Math.ceil(opItems.length / itemsPerPage);
+            let start = pageKeluar[opNameUpper] * itemsPerPage;
+            let displayItems = opItems.slice(start, start + itemsPerPage);
+            
             let div = document.createElement('div');
-            let html = `<div style="background:#e5e7eb; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold; color:#374151;">👤 ${opNameUpper}</div>`;
-            html += opItems.map(x => {
+            div.style.marginBottom = "20px";
+            let html = `<div style="background:#e5e7eb; padding:10px; border-radius:8px; margin-bottom:10px; font-weight:bold; color:#374151;">👤 ${opNameUpper}</div>`;
+            
+            html += displayItems.map(x => {
                 let actualIndex = riwayatKeluar.indexOf(x);
                 return `<div class="item-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
             }).join('');
+            
+            if (totalPages > 1) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                            <button class="btn-action" style="width:auto" onclick="changePageKeluar('${opNameUpper}', -1)">Prev</button>
+                            <span style="font-size:11px;">${pageKeluar[opNameUpper]+1}/${totalPages}</span>
+                            <button class="btn-action" style="width:auto" onclick="changePageKeluar('${opNameUpper}', 1)">Next</button>
+                        </div>`;
+            }
+            
             div.innerHTML = html;
-            fragment.appendChild(div);
+            list.appendChild(div);
         });
-        
-        list.innerHTML = '';
-        list.appendChild(fragment);
-        
-        nav.innerHTML = totalPages > 1 ? `<button class="btn-action" style="width:auto" onclick="changePageKeluar(-1)">Prev</button><span>${pageKeluar+1}/${totalPages}</span><button class="btn-action" style="width:auto" onclick="changePageKeluar(1)">Next</button>` : "";
     }
     
-    function changePageKeluar(dir) {
-        let term = document.getElementById('cariKeluar').value.toLowerCase();
-        let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term));
-        let maxPage = Math.ceil(filtered.length / itemsPerPage);
-        pageKeluar = Math.max(0, Math.min(pageKeluar + dir, maxPage - 1));
+    function changePageKeluar(opName, dir) {
+        let totalPages = Math.ceil(riwayatKeluar.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
+        pageKeluar[opName] = Math.max(0, Math.min((pageKeluar[opName] || 0) + dir, totalPages - 1));
         renderKeluar();
     }
 </script>

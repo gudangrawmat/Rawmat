@@ -153,7 +153,9 @@
         </div>
         <div id="area" class="area-grid"></div>
         <div class="summary-box">
-            <div style="font-weight:bold; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:10px;">Total Stok (Hasil Filter)</div>
+            <div style="font-weight:bold; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:10px; cursor:pointer;" onclick="toggleSummary()">
+                Total Stok (Hasil Filter) <span id="summaryIcon">▼</span>
+            </div>
             <div id="ringkasan" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;"></div>
         </div>
     </div>
@@ -213,7 +215,7 @@
     function debounceRender() { clearTimeout(timerCari); timerCari = setTimeout(() => { render(); }, 300); }
     function debounceRenderKeluar() { clearTimeout(timerCariKeluar); timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300); }
 
-    let data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = 'All';
+    let data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = null; 
     document.getElementById('tgl').valueAsDate = new Date();
     document.getElementById('opName').value = localStorage.getItem('opName') || '';
 
@@ -222,6 +224,18 @@
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = s.val() || []; renderMasuk(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = s.val() || []; renderPindah(); });
     db.ref('pallets_config').on('value', s => { palletList = s.val() || []; refreshAll(); });
+
+    function toggleSummary() {
+        let el = document.getElementById('ringkasan');
+        let icon = document.getElementById('summaryIcon');
+        if (el.style.display === 'none') {
+            el.style.display = 'grid';
+            icon.innerText = '▼';
+        } else {
+            el.style.display = 'none';
+            icon.innerText = '▲';
+        }
+    }
 
     function updateAutofill() {
         let codeList = document.getElementById('codeList');
@@ -259,7 +273,7 @@
         document.getElementById('qtyWrapper').style.display = (type === 'add') ? 'block' : 'none';
     }
     
-    function closeModal(id) { document.getElementById('rackModal').style.display = 'none'; document.getElementById('moveModal').style.display = 'none'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     
     function showMoveModal(mode, source) {
         document.getElementById('moveSource').value = source;
@@ -382,7 +396,10 @@
         nav.innerHTML = finalCats.map(f => `<button class="filter-btn ${currentFilter==f?'active':''}" onclick="setFilter('${f}')">${f}</button>`).join('');
     }
     
-    function setFilter(f) { currentFilter = f; refreshAll(); }
+    function setFilter(f) {
+        currentFilter = (currentFilter === f) ? null : f;
+        refreshAll();
+    }
     
     function updatePalletSelect() {
         let select = document.getElementById('pallet');
@@ -404,6 +421,13 @@
         let term = document.getElementById('cari').value.toLowerCase();
         let hideEmpty = document.getElementById('hideEmpty').checked;
         let totalStok = {};
+
+        // Cek jika tidak ada pencarian DAN tidak ada filter aktif
+        if (currentFilter === null && term === "") {
+            document.getElementById('ringkasan').innerHTML = '';
+            area.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Silakan pilih Kategori atau Cari Item untuk menampilkan data.</div>';
+            return;
+        }
         
         palletList.sort(sortByName); 
         palletList.forEach(p => {
@@ -411,7 +435,9 @@
             let items = data.filter(x => x.pallet == p.name);
             
             if (hideEmpty && items.length === 0) return;
-            if (term === "" && currentFilter !== 'All' && currentFilter !== prefix) return;
+            
+            // Logika baru: Jika ADA term (pencarian), abaikan filter kategori
+            if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
@@ -420,7 +446,7 @@
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
             });
 
-            if (term !== "" && filtered.length === 0) return;
+            if (filtered.length === 0) return;
             
             if (currentPages[p.name] === undefined) currentPages[p.name] = 0;
             let totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -462,7 +488,7 @@
         let r = ''; Object.keys(totalStok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
         document.getElementById('ringkasan').innerHTML = r;
     }
-
+    
     function changePage(palletName, dir) {
         let items = data.filter(x => x.pallet == palletName);
         let filtered = items.filter(x => x.code.toLowerCase().includes(document.getElementById('cari').value.toLowerCase()));

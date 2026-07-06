@@ -22,6 +22,19 @@
         }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; font-size: 14px; line-height: 1.5; }
         
+        /* Prioritas Badge */
+        .fifo-badge {
+            background: #fef3c7; 
+            color: #92400e; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-size: 10px; 
+            font-weight: 700;
+            margin-bottom: 5px;
+            display: inline-block;
+            border: 1px solid #fcd34d;
+        }
+
         /* Toast Notification */
         .toast { visibility: hidden; min-width: 250px; background-color: #22c55e; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; top: 30px; left: 50%; transform: translateX(-50%); font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
@@ -200,7 +213,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    // Fungsi Toast
     function showToast(message) {
         let toast = document.getElementById("toast");
         toast.innerText = message;
@@ -445,6 +457,15 @@
             area.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">🔍 Silakan pilih Kategori atau Cari Item untuk mulai melihat data.</div>';
             return;
         }
+
+        // --- HITUNG GLOBAL OLDEST DATE PER ITEM CODE ---
+        let globalOldest = {};
+        data.forEach(item => {
+            let itemDate = new Date(item.tgl);
+            if (!globalOldest[item.code] || itemDate < new Date(globalOldest[item.code])) {
+                globalOldest[item.code] = item.tgl;
+            }
+        });
         
         palletList.sort(sortByName); 
         palletList.forEach(p => {
@@ -452,10 +473,12 @@
             let items = data.filter(x => x.pallet == p.name);
             
             if (hideEmpty && items.length === 0) return;
-            
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
+
+            // Urutkan item dari tanggal paling lama (Ascending)
+            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
             
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
@@ -474,9 +497,15 @@
             
             let html = `<div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
-            displayItems.forEach(x => { 
+            displayItems.forEach((x, index) => { 
                 let idx = data.indexOf(x); 
+                
+                // --- LOGIKA GLOBAL PRIORITAS ---
+                let isGlobalOldest = (x.tgl === globalOldest[x.code]);
+                let badge = isGlobalOldest ? '<div class="fifo-badge">🔥 PRIORITAS</div>' : '';
+
                 html += `<div class="item-card">
+                            ${badge}
                             <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${x.code}</div>
                             <div style="font-size:13px; color:#4b5563;">Qty: ${x.qty} Kg</div>
                             <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl}</div>

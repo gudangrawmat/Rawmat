@@ -13,47 +13,71 @@
         :root { 
             --primary: #2563eb; 
             --primary-light: #dbeafe;
-            --bg: #f1f5f9; 
+            --bg-start: #e2e8f0;
+            --bg-mid: #cbd5e1;
+            --bg-end: #f1f5f9;
             --text: #0f172a;
             --text-muted: #64748b;
-            --card-bg: #ffffff;
-            --shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+            /* Dibuat lebih transparan menjadi 0.5 */
+            --card-glass: rgba(255, 255, 255, 0.5); 
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             --radius: 12px;
         }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; font-size: 14px; line-height: 1.5; }
-        
-        /* Prioritas Badge */
-        .fifo-badge {
-            background: #fef3c7; 
-            color: #92400e; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
-            font-size: 10px; 
-            font-weight: 700;
-            margin-bottom: 5px;
-            display: inline-block;
-            border: 1px solid #fcd34d;
+
+        /* --- BACKGROUND ANIMATION --- */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(-45deg, var(--bg-start), var(--bg-mid), var(--bg-end), var(--bg-start));
+            background-size: 400% 400%;
+            animation: gradientMove 15s ease infinite;
+            color: var(--text); 
+            margin: 0; 
+            padding: 15px; 
+            font-size: 14px; 
+            line-height: 1.5; 
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* --- STAR ANIMATION EFFECT --- */
+        .star-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+        .star { position: absolute; border-radius: 50%; opacity: 0.8; animation: fall linear infinite; box-shadow: 0 0 5px rgba(255,255,255,0.5); }
+        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
+
+        /* --- GLASSMORPHISM & ANIMATIONS --- */
+        .controls, .summary-box, .nav-bar, .pallet-card {
+            background: var(--card-glass) !important;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
         }
 
-        /* Toast Notification */
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .pallet-card, .item-card { animation: fadeInUp 0.4s ease-out forwards; }
+        .pallet-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transition: all 0.3s ease; }
+        button:active { transform: scale(0.96); transition: transform 0.1s; }
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-content { animation: zoomIn 0.3s ease-out; }
+        .page { transition: opacity 0.3s ease; }
+
+        /* --- UI COMPONENTS --- */
         .toast { visibility: hidden; min-width: 250px; background-color: #22c55e; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; top: 30px; left: 50%; transform: translateX(-50%); font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {top: 0; opacity: 0;} to {top: 30px; opacity: 1;} }
         @keyframes fadeout { from {top: 30px; opacity: 1;} to {top: 0; opacity: 0;} }
 
-        .status-indicator { position: fixed; bottom: 20px; right: 20px; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px; z-index: 1000; box-shadow: var(--shadow); }
-        .online { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .offline { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-indicator { position: fixed; bottom: 20px; right: 20px; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px; z-index: 1000; box-shadow: var(--shadow); background: white; }
+        .online { color: #166534; border: 1px solid #bbf7d0; }
+        .offline { color: #991b1b; border: 1px solid #fecaca; }
 
         .wrap { max-width: 900px; margin: auto; }
         .header-box { background: linear-gradient(135deg, #2563eb, #1e40af); color: white; padding: 25px; border-radius: var(--radius); text-align: center; font-weight: 700; margin-bottom: 20px; font-size: 1.5rem; box-shadow: 0 10px 15px -3px rgba(37,99,235,0.2); }
-        
-        .nav-bar { display: flex; gap: 5px; margin-bottom: 20px; background: var(--card-bg); padding: 5px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
+        .nav-bar { display: flex; gap: 5px; margin-bottom: 20px; padding: 5px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
         .nav-btn { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; color: var(--text-muted); }
         .nav-btn.active { background: var(--primary); color: white; }
-        
         .page { display: none; } .page.active { display: block; }
-        .controls { background: var(--card-bg); padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .controls { padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid #e2e8f0; }
         
         .filter-group { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 20px; padding-bottom: 5px; }
         .filter-btn { white-space: nowrap; padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; background: white; font-weight: 500; color: var(--text-muted); transition: 0.2s; }
@@ -64,24 +88,23 @@
         button:hover { opacity: 0.9; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-        .modal-content { background: var(--card-bg); padding: 25px; border-radius: var(--radius); width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content { background: white; padding: 25px; border-radius: var(--radius); width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         
         .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-        
-        .pallet-card { background: var(--card-bg); padding: 16px; border-radius: var(--radius); border-left: 6px solid var(--primary); box-shadow: var(--shadow); border: 1px solid #e2e8f0; transition: transform 0.2s; }
-        .pallet-card:hover { transform: translateY(-2px); }
+        .pallet-card { padding: 16px; border-radius: var(--radius); border-left: 6px solid var(--primary); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
         .ibc-wide { grid-column: 1 / -1; border-left-color: #8b5cf6; } 
-        
         .pallet-title { font-weight: 700; font-size: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 4px; color: var(--text-muted); }
         .btn-delete { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
-        
-        .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; }
-        .summary-box { background: var(--card-bg); padding: 20px; border-radius: var(--radius); margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
+        .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #ffffff; border-radius: 8px; margin-bottom: 8px; }
+        .summary-box { padding: 20px; border-radius: var(--radius); margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
         .summary-item { background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 600; }
+        .fifo-badge { background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-block; border: 1px solid #fcd34d; }
     </style>
 </head>
 <body>
+
+<div class="star-container" id="star-container"></div>
 
 <div id="toast" class="toast"></div>
 <div id="statusIndicator" class="status-indicator online">● Online</div>
@@ -209,6 +232,25 @@
 </div>
 
 <script>
+    function createStars() {
+        const container = document.getElementById('star-container');
+        const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
+        for(let i=0; i<30; i++) {
+            let star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + 'vw';
+            star.style.top = Math.random() * 100 + 'vh';
+            let size = Math.random() * 3 + 2;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            star.style.animationDuration = (Math.random() * 8 + 5) + 's';
+            star.style.animationDelay = (Math.random() * 5) + 's';
+            container.appendChild(star);
+        }
+    }
+    createStars();
+
     const firebaseConfig = { apiKey: "AIzaSyA9bEF4ylQ5zgl-7qnTD4zzeLUO1_pPnb0", databaseURL: "https://gudangrawmat-76d53-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "gudangrawmat-76d53" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -220,7 +262,10 @@
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
     }
     
-    let riwayatPindah = [];
+    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = null; 
+    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {};
+    let timerCari, timerCariKeluar;
+
     function updateOnlineStatus() {
         let s = document.getElementById('statusIndicator');
         if (navigator.onLine) { s.className = 'status-indicator online'; s.innerText = '● Online'; }
@@ -237,15 +282,9 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    let itemsPerPage = 5; 
-    let currentPages = {}; 
-    let pageKeluar = {}, pageMasuk = {};
-    let timerCari, timerCariKeluar;
-
     function debounceRender() { clearTimeout(timerCari); timerCari = setTimeout(() => { render(); }, 300); }
     function debounceRenderKeluar() { clearTimeout(timerCariKeluar); timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300); }
 
-    let data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = null; 
     document.getElementById('tgl').valueAsDate = new Date();
     document.getElementById('opName').value = localStorage.getItem('opName') || '';
 
@@ -258,13 +297,8 @@
     function toggleSummary() {
         let el = document.getElementById('ringkasan');
         let icon = document.getElementById('summaryIcon');
-        if (el.style.display === 'none') {
-            el.style.display = 'grid';
-            icon.innerText = '▼';
-        } else {
-            el.style.display = 'none';
-            icon.innerText = '▲';
-        }
+        if (el.style.display === 'none') { el.style.display = 'grid'; icon.innerText = '▼'; }
+        else { el.style.display = 'none'; icon.innerText = '▲'; }
     }
 
     function updateAutofill() {
@@ -357,13 +391,46 @@
         list.innerHTML = '';
         let term = document.getElementById('cariPindah') ? document.getElementById('cariPindah').value.toLowerCase() : "";
         let filtered = riwayatPindah.filter(x => (x.item||"").toLowerCase().includes(term) || (x.operator||"").toLowerCase().includes(term));
-        filtered.reverse().forEach((x, index) => {
-            let actualIndex = riwayatPindah.length - 1 - index;
-            list.innerHTML += `<div class="item-card"><b>${x.item}</b><br>
-                               <small>Dari: ${x.dari} ➔ Ke: <b>${x.ke}</b></small><br>
-                               <small>Op: ${x.operator} | ${x.tgl} ${x.jam}</small><br>
-                               <button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusPindah(${actualIndex})">🗑️ Hapus</button></div>`;
+        filtered.sort((a, b) => new Date(b.tgl + " " + b.jam) - new Date(a.tgl + " " + a.jam));
+
+        let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        
+        uniqueOps.forEach(opNameUpper => {
+            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            if (pagePindah[opNameUpper] === undefined) pagePindah[opNameUpper] = 0;
+            
+            let totalPages = Math.ceil(opItems.length / itemsPerPage);
+            let start = pagePindah[opNameUpper] * itemsPerPage;
+            let displayItems = opItems.slice(start, start + itemsPerPage);
+            
+            let div = document.createElement('div');
+            div.style.marginBottom = "20px";
+            let html = `<div style="background:#fef3c7; padding:10px; border-radius:8px; margin-bottom:10px; font-weight:bold; color:#92400e;">👤 ${opNameUpper}</div>`;
+            
+            html += displayItems.map(x => {
+                let actualIndex = riwayatPindah.indexOf(x);
+                return `<div class="item-card"><b>${x.item}</b><br>
+                         <small>Dari: ${x.dari} ➔ Ke: <b>${x.ke}</b></small><br>
+                         <small>Tgl: ${x.tgl} | Jam: ${x.jam}</small><br>
+                         <button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusPindah(${actualIndex})">🗑️ Hapus</button></div>`;
+            }).join('');
+            
+            if (totalPages > 1) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                            <button class="btn-action" onclick="changePagePindah('${opNameUpper}', -1)">Prev</button>
+                            <span style="font-size:11px;">${pagePindah[opNameUpper]+1}/${totalPages}</span>
+                            <button class="btn-action" onclick="changePagePindah('${opNameUpper}', 1)">Next</button>
+                        </div>`;
+            }
+            div.innerHTML = html;
+            list.appendChild(div);
         });
+    }
+
+    function changePagePindah(opName, dir) {
+        let totalPages = Math.ceil(riwayatPindah.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
+        pagePindah[opName] = Math.max(0, Math.min((pagePindah[opName] || 0) + dir, totalPages - 1));
+        renderPindah();
     }
 
     function hapusPindah(i) {
@@ -458,7 +525,6 @@
             return;
         }
 
-        // --- HITUNG GLOBAL OLDEST DATE PER ITEM CODE ---
         let globalOldest = {};
         data.forEach(item => {
             let itemDate = new Date(item.tgl);
@@ -476,8 +542,6 @@
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
-
-            // Urutkan item dari tanggal paling lama (Ascending)
             filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
             
             filtered.forEach(x => {
@@ -499,8 +563,6 @@
             
             displayItems.forEach((x, index) => { 
                 let idx = data.indexOf(x); 
-                
-                // --- LOGIKA GLOBAL PRIORITAS ---
                 let isGlobalOldest = (x.tgl === globalOldest[x.code]);
                 let badge = isGlobalOldest ? '<div class="fifo-badge">🔥 PRIORITAS</div>' : '';
 

@@ -18,40 +18,19 @@
             --bg-end: #f1f5f9;
             --text: #0f172a;
             --text-muted: #64748b;
-            /* Dibuat lebih transparan menjadi 0.5 */
             --card-glass: rgba(255, 255, 255, 0.5); 
             --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             --radius: 12px;
         }
 
-        /* --- BACKGROUND ANIMATION --- */
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: linear-gradient(-45deg, var(--bg-start), var(--bg-mid), var(--bg-end), var(--bg-start));
-            background-size: 400% 400%;
-            animation: gradientMove 15s ease infinite;
-            color: var(--text); 
-            margin: 0; 
-            padding: 15px; 
-            font-size: 14px; 
-            line-height: 1.5; 
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(-45deg, var(--bg-start), var(--bg-mid), var(--bg-end), var(--bg-start)); background-size: 400% 400%; animation: gradientMove 15s ease infinite; color: var(--text); margin: 0; padding: 15px; font-size: 14px; line-height: 1.5; min-height: 100vh; overflow-x: hidden; position: relative; }
         @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
-        /* --- STAR ANIMATION EFFECT --- */
         .star-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
         .star { position: absolute; border-radius: 50%; opacity: 0.8; animation: fall linear infinite; box-shadow: 0 0 5px rgba(255,255,255,0.5); }
         @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
 
-        /* --- GLASSMORPHISM & ANIMATIONS --- */
-        .controls, .summary-box, .nav-bar, .pallet-card {
-            background: var(--card-glass) !important;
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.6) !important;
-        }
+        .controls, .summary-box, .nav-bar, .pallet-card { background: var(--card-glass) !important; backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.6) !important; }
 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .pallet-card, .item-card { animation: fadeInUp 0.4s ease-out forwards; }
@@ -61,7 +40,6 @@
         .modal-content { animation: zoomIn 0.3s ease-out; }
         .page { transition: opacity 0.3s ease; }
 
-        /* --- UI COMPONENTS --- */
         .toast { visibility: hidden; min-width: 250px; background-color: #22c55e; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; top: 30px; left: 50%; transform: translateX(-50%); font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {top: 0; opacity: 0;} to {top: 30px; opacity: 1;} }
@@ -105,7 +83,6 @@
 <body>
 
 <div class="star-container" id="star-container"></div>
-
 <div id="toast" class="toast"></div>
 <div id="statusIndicator" class="status-indicator online">● Online</div>
 
@@ -175,12 +152,16 @@
         <div class="controls">
             <input id="opName" placeholder="👤 Nama Operator" onchange="saveOpName(this.value)">
             <div class="filter-group" id="filterNav"></div>
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="debounceRender()" style="margin-bottom:0; width: 60%;">
-                <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; color:var(--text-muted);">
-                    <input type="checkbox" id="hideEmpty" onchange="render()" style="width: auto; margin: 0 5px 0 0;"> Hide Kosong
-                </label>
+            
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
+                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="debounceRender()" style="margin-bottom:0; flex:1;">
+                <div style="display:flex; gap: 15px; align-items: center;">
+                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; color:var(--text-muted);">
+                        <input type="checkbox" id="hideEmpty" onchange="render()" style="width: auto; margin: 0 5px 0 0;"> Hide Kosong
+                    </label>
+                </div>
             </div>
+
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px;">
                 <input id="code" placeholder="Item" list="codeList">
                 <datalist id="codeList"></datalist>
@@ -265,6 +246,19 @@
     let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = null; 
     let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {};
     let timerCari, timerCariKeluar;
+    let unlockedItems = []; 
+
+    function toggleLockItem(index) {
+        const arrIndex = unlockedItems.indexOf(index);
+        if (arrIndex > -1) {
+            unlockedItems.splice(arrIndex, 1);
+            showToast("🔒 Item berhasil dikunci.");
+        } else {
+            unlockedItems.push(index);
+            showToast("🔓 Item dibuka untuk diedit.");
+        }
+        render();
+    }
 
     function updateOnlineStatus() {
         let s = document.getElementById('statusIndicator');
@@ -564,18 +558,30 @@
             displayItems.forEach((x, index) => { 
                 let idx = data.indexOf(x); 
                 let isGlobalOldest = (x.tgl === globalOldest[x.code]);
+                let isUnlocked = unlockedItems.includes(idx); 
                 let badge = isGlobalOldest ? '<div class="fifo-badge">🔥 PRIORITAS</div>' : '';
+
+                let actionButtons = '';
+                if (isGlobalOldest || isUnlocked) {
+                    let lockButton = !isGlobalOldest ? `<button class="btn-action" style="flex:1; background:#64748b; color:white; padding:5px 2px; font-size:11px;" onclick="toggleLockItem(${idx})">🔒 Kunci</button>` : '';
+                    actionButtons = `<div style="display:flex; flex-direction:row; margin-top:10px; gap:4px; width:100%;">
+                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="showMoveModal('item', ${idx})">🚚 Pindah</button>
+                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="editItem(${idx})">✏️ Edit</button>
+                                        <button class="btn-action btn-delete" style="flex:1; padding:5px 2px; font-size:11px;" onclick="hapusStok(${idx})">🗑️ Hapus</button>
+                                        ${lockButton}
+                                    </div>`;
+                } else {
+                    actionButtons = `<div style="display:flex; margin-top:10px; width:100%;">
+                                        <button class="btn-action" style="flex:1; background:#e11d48; color:white; padding:6px; font-size:12px;" onclick="toggleLockItem(${idx})">🔓 Buka Kunci Item</button>
+                                     </div>`;
+                }
 
                 html += `<div class="item-card">
                             ${badge}
                             <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${x.code}</div>
                             <div style="font-size:13px; color:#4b5563;">Qty: ${x.qty} Kg</div>
                             <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl}</div>
-                            <div style="display:flex; justify-content:flex-end; margin-top:10px; gap:4px;">
-                                <button class="btn-action" onclick="showMoveModal('item', ${idx})">🚚 Pindah</button>
-                                <button class="btn-action" onclick="editItem(${idx})">✏️ Edit</button>
-                                <button class="btn-action btn-delete" onclick="hapusStok(${idx})">🗑️</button>
-                            </div>
+                            ${actionButtons}
                         </div>`; 
             });
             

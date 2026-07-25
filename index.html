@@ -23,6 +23,20 @@
             --radius: 12px;
         }
 
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 5px #fcd34d; }
+            50% { box-shadow: 0 0 15px #fcd34d, 0 0 20px #fbbf24; }
+            100% { box-shadow: 0 0 5px #fcd34d; }
+        }
+        @keyframes flameShake {
+            0% { transform: translateY(0); }
+            25% { transform: translateY(-3px); }
+            50% { transform: translateY(0); }
+            75% { transform: translateY(-2px); }
+            100% { transform: translateY(0); }
+        }
+        .animate-flame { display: inline-block; animation: flameShake 0.6s infinite; }
+
         body { font-family: 'Inter', sans-serif; background: linear-gradient(-45deg, var(--bg-start), var(--bg-mid), var(--bg-end), var(--bg-start)); background-size: 400% 400%; animation: gradientMove 15s ease infinite; color: var(--text); margin: 0; padding: 15px; font-size: 14px; line-height: 1.5; min-height: 100vh; overflow-x: hidden; position: relative; }
         @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
@@ -49,7 +63,8 @@
         .online { color: #166534; border: 1px solid #bbf7d0; }
         .offline { color: #991b1b; border: 1px solid #fecaca; }
 
-        .wrap { max-width: 900px; margin: auto; }
+        .wrap { max-width: 1200px; margin: auto; } 
+
         .header-box { background: linear-gradient(135deg, #2563eb, #1e40af); color: white; padding: 25px; border-radius: var(--radius); text-align: center; font-weight: 700; margin-bottom: 20px; font-size: 1.5rem; box-shadow: 0 10px 15px -3px rgba(37,99,235,0.2); }
         .nav-bar { display: flex; gap: 5px; margin-bottom: 20px; padding: 5px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
         .nav-btn { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; color: var(--text-muted); }
@@ -61,14 +76,14 @@
         .filter-btn { white-space: nowrap; padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; background: white; font-weight: 500; color: var(--text-muted); transition: 0.2s; }
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
-        input, select, button { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-family: inherit; font-size: 14px; }
+        input, select, button { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-family: inherit; font-size: 14px; background: #fff; }
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
         button:hover { opacity: 0.9; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: var(--radius); width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         
-        .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
         .pallet-card { padding: 16px; border-radius: var(--radius); border-left: 6px solid var(--primary); box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
         .ibc-wide { grid-column: 1 / -1; border-left-color: #8b5cf6; } 
         .pallet-title { font-weight: 700; font-size: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
@@ -77,10 +92,52 @@
         .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #ffffff; border-radius: 8px; margin-bottom: 8px; }
         .summary-box { padding: 20px; border-radius: var(--radius); margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
         .summary-item { background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 600; }
-        .fifo-badge { background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-block; border: 1px solid #fcd34d; }
+        
+        .fifo-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fcd34d; animation: glowPulse 2s infinite; }
+        
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 99999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+        }
+        .login-box {
+            background: white;
+            padding: 35px 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: zoomIn 0.3s ease-out;
+        }
     </style>
 </head>
 <body>
+
+<div id="loginOverlay">
+    <div class="login-box">
+        <div style="font-size: 40px; margin-bottom: 10px;">📦</div>
+        <h2 style="margin-top: 0; color: #1e3a8a; font-size: 1.25rem; margin-bottom: 6px;">GUDANG RAW MATERIAL</h2>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 25px;">Silakan pilih nama operator untuk masuk ke sistem:</p>
+        
+        <select id="selectLoginOperator" style="padding: 12px; font-size: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; font-weight: 600; color: #1e40af; background: #eff6ff;">
+            <option value="" disabled selected>-- Pilih Operator --</option>
+            <option value="Tri">Tri</option>
+            <option value="Gigin">Gigin</option>
+            <option value="Dede">Dede</option>
+        </select>
+
+        <button onclick="prosesLogin()" style="width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer;">Masuk Aplikasi</button>
+    </div>
+</div>
 
 <div class="star-container" id="star-container"></div>
 <div id="toast" class="toast"></div>
@@ -150,7 +207,11 @@
 
     <div id="page-stok" class="page active">
         <div class="controls">
-            <input id="opName" placeholder="👤 Nama Operator" onchange="saveOpName(this.value)">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px 14px; border-radius: 8px; margin-bottom: 15px;">
+                <span style="font-weight: 600; color: #1e40af; font-size: 13px;">👤 Operator Aktif: <b id="displayOpName">-</b></span>
+                <button onclick="gantiOperator()" style="width: auto; padding: 5px 10px; font-size: 11px; background: #e11d48; margin-bottom: 0;">Ganti Operator</button>
+            </div>
+
             <div class="filter-group" id="filterNav"></div>
             
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
@@ -248,13 +309,41 @@
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
 
-    function toggleLockItem(index) {
-        const arrIndex = unlockedItems.indexOf(index);
+    window.addEventListener('DOMContentLoaded', () => {
+        let savedOp = localStorage.getItem('opName');
+        if (savedOp && (savedOp === 'Tri' || savedOp === 'Gigin' || savedOp === 'Dede')) {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('displayOpName').innerText = savedOp;
+        } else {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        }
+    });
+
+    function prosesLogin() {
+        let selectedOp = document.getElementById('selectLoginOperator').value;
+        if (!selectedOp) {
+            alert("⚠️ Silakan pilih nama operator terlebih dahulu!");
+            return;
+        }
+        localStorage.setItem('opName', selectedOp);
+        document.getElementById('displayOpName').innerText = selectedOp;
+        document.getElementById('loginOverlay').style.display = 'none';
+        showToast("👋 Selamat datang, " + selectedOp + "!");
+    }
+
+    function gantiOperator() {
+        localStorage.removeItem('opName');
+        document.getElementById('selectLoginOperator').value = "";
+        document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    function toggleLockItem(itemId) {
+        const arrIndex = unlockedItems.indexOf(itemId);
         if (arrIndex > -1) {
             unlockedItems.splice(arrIndex, 1);
             showToast("🔒 Item berhasil dikunci.");
         } else {
-            unlockedItems.push(index);
+            unlockedItems.push(itemId);
             showToast("🔓 Item dibuka untuk diedit.");
         }
         render();
@@ -280,13 +369,13 @@
     function debounceRenderKeluar() { clearTimeout(timerCariKeluar); timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300); }
 
     document.getElementById('tgl').valueAsDate = new Date();
-    document.getElementById('opName').value = localStorage.getItem('opName') || '';
 
-    db.ref('gudang_final').on('value', s => { data = s.val() || []; updateAutofill(); render(); });
-    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = s.val() || []; renderKeluar(); });
-    db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = s.val() || []; renderMasuk(); });
-    db.ref('riwayat_pindah').on('value', s => { riwayatPindah = s.val() || []; renderPindah(); });
-    db.ref('pallets_config').on('value', s => { palletList = s.val() || []; refreshAll(); });
+    // MENGGUNAKAN Object.values AGAR AMAN DARI STRUKTUR OBJECT FIREBASE
+    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); });
+    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); });
+    db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); });
+    db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
+    db.ref('pallets_config').on('value', s => { palletList = Object.values(s.val() || {}); refreshAll(); });
 
     function toggleSummary() {
         let el = document.getElementById('ringkasan');
@@ -301,7 +390,6 @@
         codeList.innerHTML = uniqueCodes.map(code => `<option value="${code}">`).join('');
     }
 
-    function saveOpName(v) { localStorage.setItem('opName', v); }
     function updateCategoryOptions() {
         let s=document.getElementById('inputCategory');
         let cats=[...new Set(palletList.map(p=>p.category).filter(c=>c&&c.trim()))].sort();
@@ -334,6 +422,9 @@
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     
     function showMoveModal(mode, source) {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
         document.getElementById('moveSource').value = source;
         document.getElementById('moveMode').value = mode;
         let select = document.getElementById('moveDestSelect');
@@ -351,12 +442,12 @@
         let source = document.getElementById('moveSource').value;
         let mode = document.getElementById('moveMode').value;
         let dest = document.getElementById('moveDestSelect').value;
-        let opName = document.getElementById('opName').value.trim();
+        let opName = localStorage.getItem('opName') || '';
 
-        if (!opName) { alert("⚠️ Isi Nama Operator dulu!"); return; }
+        if (!opName) { gantiOperator(); return; }
 
-        let namaDari = (mode === 'item') ? data[parseInt(source)].pallet : source;
-        let itemMoved = (mode === 'item') ? data[source].code : "Semua item di " + source;
+        let namaDari = (mode === 'item') ? data.find(x => x.id === source)?.pallet || source : source;
+        let itemMoved = (mode === 'item') ? data.find(x => x.id === source)?.code : "Semua item di " + source;
 
         riwayatPindah.push({
             item: itemMoved,
@@ -373,7 +464,8 @@
             palletList = palletList.filter(p => p.name !== source);
             db.ref('pallets_config').set(palletList);
         } else {
-            data[parseInt(source)].pallet = dest;
+            let targetItem = data.find(x => x.id === source);
+            if (targetItem) targetItem.pallet = dest;
         }
         syncAndRender();
         showToast("🚚 Item berhasil dipindahkan!");
@@ -555,24 +647,27 @@
             
             let html = `<div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
-            displayItems.forEach((x, index) => { 
-                let idx = data.indexOf(x); 
+            displayItems.forEach((x) => { 
+                // MEMASTIKAN SETIAP ITEM MEMILIKI ID UNIK AMAN
+                if(!x.id) x.id = 'legacy_' + Math.random().toString(36).substr(2, 9);
+                
                 let isGlobalOldest = (x.tgl === globalOldest[x.code]);
-                let isUnlocked = unlockedItems.includes(idx); 
-                let badge = isGlobalOldest ? '<div class="fifo-badge">🔥 PRIORITAS</div>' : '';
+                let isUnlocked = unlockedItems.includes(x.id); 
+                
+                let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
 
                 let actionButtons = '';
                 if (isGlobalOldest || isUnlocked) {
-                    let lockButton = !isGlobalOldest ? `<button class="btn-action" style="flex:1; background:#64748b; color:white; padding:5px 2px; font-size:11px;" onclick="toggleLockItem(${idx})">🔒 Kunci</button>` : '';
+                    let lockButton = !isGlobalOldest ? `<button class="btn-action" style="flex:1; background:#64748b; color:white; padding:5px 2px; font-size:11px;" onclick="toggleLockItem('${x.id}')">🔒 Kunci</button>` : '';
                     actionButtons = `<div style="display:flex; flex-direction:row; margin-top:10px; gap:4px; width:100%;">
-                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="showMoveModal('item', ${idx})">🚚 Pindah</button>
-                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="editItem(${idx})">✏️ Edit</button>
-                                        <button class="btn-action btn-delete" style="flex:1; padding:5px 2px; font-size:11px;" onclick="hapusStok(${idx})">🗑️ Hapus</button>
+                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="showMoveModal('item', '${x.id}')">🚚 Pindah</button>
+                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="editItem('${x.id}')">✏️ Edit</button>
+                                        <button class="btn-action btn-delete" style="flex:1; padding:5px 2px; font-size:11px;" onclick="hapusStok('${x.id}')">🗑️ Hapus</button>
                                         ${lockButton}
                                     </div>`;
                 } else {
                     actionButtons = `<div style="display:flex; margin-top:10px; width:100%;">
-                                        <button class="btn-action" style="flex:1; background:#e11d48; color:white; padding:6px; font-size:12px;" onclick="toggleLockItem(${idx})">🔓 Buka Kunci Item</button>
+                                        <button class="btn-action" style="flex:1; background:#e11d48; color:white; padding:6px; font-size:12px;" onclick="toggleLockItem('${x.id}')">🔓 Buka Kunci Item</button>
                                      </div>`;
                 }
 
@@ -611,6 +706,9 @@
     }
     
     function deletePallet(n) { 
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
         if (!confirm("Yakin ingin menghapus rak " + n + "?")) return;
         let itemsInPallet = data.filter(x => x.pallet === n);
         if (itemsInPallet.length > 0) {
@@ -622,20 +720,23 @@
     }
     
     function tambah() { 
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
         let code = document.getElementById('code').value.toUpperCase(); 
         let qty = document.getElementById('qty').value; 
         let tgl = document.getElementById('tgl').value; 
         let pallet = document.getElementById('pallet').value; 
         let jumlah = parseInt(document.getElementById('jumlah').value) || 1; 
-        let opName = document.getElementById('opName').value.trim();
 
         if (!pallet) { alert("Harap pilih Rak/IBC terlebih dahulu!"); return; }
-        if (!opName) { alert("⚠️ Isi Nama Operator dulu!"); return; }
         
         for(let i = 0; i < jumlah; i++) {
-            data.push({code, qty, tgl, pallet}); 
+            let uniqueId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            data.push({id: uniqueId, code, qty, tgl, pallet}); 
             let now = new Date();
             riwayatMasuk.push({
+                id: uniqueId,
                 code, qty, tgl, pallet,
                 operator: opName,
                 jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -647,12 +748,20 @@
         document.getElementById('code').focus();
     }
     
-    function hapusStok(i) { 
+    // MENGHAPUS BERDASARKAN ID UNIK (100% AMAN DAN AKURAT)
+    function hapusStok(id) { 
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
         if (!confirm("Apakah Anda yakin ingin menghapus item ini?")) return;
-        let opName = document.getElementById('opName').value.trim();
-        if (!opName) { alert("⚠️ Peringatan: Nama Operator belum diisi! Harap isi Nama Operator sebelum menghapus barang."); return; }
         
-        let item = data[i]; 
+        let index = data.findIndex(x => x.id === id);
+        if (index === -1) {
+            alert("⚠️ Item tidak ditemukan!");
+            return;
+        }
+        
+        let item = data[index]; 
         let now = new Date(); 
         riwayatKeluar.push({
             code: item.code, qty: item.qty, tglMasuk: item.tgl, 
@@ -660,19 +769,26 @@
             tglKeluar: now.toISOString().split('T')[0], 
             jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
         }); 
-        data.splice(i, 1); 
+        
+        data.splice(index, 1); 
         syncAndRender();
         showToast("🗑️ Item berhasil dihapus.");
     }
     
-    function editItem(i) { 
-        let c = prompt("Edit Item:", data[i].code); 
-        let q = prompt("Edit Kg:", data[i].qty); 
-        let t = prompt("Edit Tanggal (YYYY-MM-DD):", data[i].tgl); 
+    function editItem(id) { 
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        let item = data.find(x => x.id === id);
+        if (!item) { alert("Item tidak ditemukan!"); return; }
+
+        let c = prompt("Edit Item:", item.code); 
+        let q = prompt("Edit Kg:", item.qty); 
+        let t = prompt("Edit Tanggal (YYYY-MM-DD):", item.tgl); 
         if(c && q && t) { 
-            data[i].code = c.toUpperCase(); 
-            data[i].qty = q; 
-            data[i].tgl = t; 
+            item.code = c.toUpperCase(); 
+            item.qty = q; 
+            item.tgl = t; 
             syncAndRender(); 
         } 
     }
@@ -692,7 +808,24 @@
     }
     
     function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
-    function importCSV(e) { let reader=new FileReader(); reader.onload=function(e){ e.target.result.split('\n').forEach((line,idx)=>{ if(idx>0&&line){ let [code,qty,tgl,pallet]=line.split(','); data.push({code,qty,tgl,pallet}); }}); db.ref('gudang_final').set(data); }; reader.readAsText(e.target.files[0]); }
+    
+    function importCSV(e) { 
+        let reader=new FileReader(); 
+        reader.onload=function(e){ 
+            e.target.result.split('\n').forEach((line,idx)=>{ 
+                if(idx>0&&line){ 
+                    let [code,qty,tgl,pallet]=line.split(','); 
+                    if(code && qty && tgl && pallet) {
+                        let uniqueId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        data.push({id: uniqueId, code: code.trim(), qty: qty.trim(), tgl: tgl.trim(), pallet: pallet.trim()}); 
+                    }
+                }
+            }); 
+            db.ref('gudang_final').set(data); 
+        }; 
+        reader.readAsText(e.target.files[0]); 
+    }
+
     function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
     function exportMasukCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator\n"; riwayatMasuk.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Masuk.csv'; a.click(); }
     function exportPindahCSV() { let csv = "Tgl,Jam,Item,Dari,Ke,Operator\n"; riwayatPindah.forEach(x => csv += `${x.tgl},${x.jam},${x.item},${x.dari},${x.ke},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pindah.csv'; a.click(); }

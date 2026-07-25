@@ -126,14 +126,20 @@
     <div class="login-box">
         <div style="font-size: 40px; margin-bottom: 10px;">📦</div>
         <h2 style="margin-top: 0; color: #1e3a8a; font-size: 1.25rem; margin-bottom: 6px;">GUDANG RAW MATERIAL</h2>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 25px;">Silakan pilih nama operator untuk masuk ke sistem:</p>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">Silakan pilih nama dan masukkan password:</p>
         
-        <select id="selectLoginOperator" style="padding: 12px; font-size: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; font-weight: 600; color: #1e40af; background: #eff6ff;">
+        <select id="selectLoginOperator" style="padding: 12px; font-size: 15px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; font-weight: 600; color: #1e40af; background: #eff6ff;">
             <option value="" disabled selected>-- Pilih Operator --</option>
             <option value="Tri">Tri</option>
             <option value="Gigin">Gigin</option>
             <option value="Dede">Dede</option>
         </select>
+
+        <!-- KOTAK PASSWORD DENGAN TOMBOL MATA -->
+        <div style="position: relative; margin-bottom: 20px;">
+            <input type="password" id="inputLoginPassword" placeholder="🔑 Masukkan Password" style="padding: 12px 40px 12px 14px; font-size: 15px; margin-bottom: 0; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; text-align: center;">
+            <span id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; user-select: none;" title="Tampilkan/Sembunyikan Password">👁️</span>
+        </div>
 
         <button onclick="prosesLogin()" style="width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer;">Masuk Aplikasi</button>
     </div>
@@ -309,11 +315,51 @@
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
 
+    const operatorPasswords = {
+        "Tri": "1234",
+        "Gigin": "1234",
+        "Dede": "1234"
+    };
+
+    // Fungsi untuk menampilkan/menyembunyikan password saat ikon mata diklik
+    function togglePasswordVisibility() {
+        let passwordInput = document.getElementById('inputLoginPassword');
+        let toggleBtn = document.getElementById('togglePasswordBtn');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleBtn.innerText = '🙈'; // Ubah ikon jadi mata tertutup
+        } else {
+            passwordInput.type = 'password';
+            toggleBtn.innerText = '👁️'; // Ubah ikon jadi mata terbuka
+        }
+    }
+
+    let idleTimeLimit = 60 * 60 * 1000; 
+    let idleTimer;
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        let currentOp = localStorage.getItem('opName');
+        if (currentOp) {
+            idleTimer = setTimeout(() => {
+                gantiOperator();
+                alert("⚠️ Anda otomatis logout karena tidak ada aktivitas selama 1 jam.");
+            }, idleTimeLimit);
+        }
+    }
+
+    window.addEventListener('mousemove', resetIdleTimer);
+    window.addEventListener('keydown', resetIdleTimer);
+    window.addEventListener('click', resetIdleTimer);
+    window.addEventListener('scroll', resetIdleTimer);
+    window.addEventListener('touchstart', resetIdleTimer);
+
     window.addEventListener('DOMContentLoaded', () => {
         let savedOp = localStorage.getItem('opName');
-        if (savedOp && (savedOp === 'Tri' || savedOp === 'Gigin' || savedOp === 'Dede')) {
+        if (savedOp && operatorPasswords[savedOp]) {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('displayOpName').innerText = savedOp;
+            resetIdleTimer();
         } else {
             document.getElementById('loginOverlay').style.display = 'flex';
         }
@@ -321,19 +367,40 @@
 
     function prosesLogin() {
         let selectedOp = document.getElementById('selectLoginOperator').value;
+        let inputPass = document.getElementById('inputLoginPassword').value;
+
         if (!selectedOp) {
             alert("⚠️ Silakan pilih nama operator terlebih dahulu!");
             return;
         }
-        localStorage.setItem('opName', selectedOp);
-        document.getElementById('displayOpName').innerText = selectedOp;
-        document.getElementById('loginOverlay').style.display = 'none';
-        showToast("👋 Selamat datang, " + selectedOp + "!");
+        if (!inputPass) {
+            alert("⚠️ Masukkan password terlebih dahulu!");
+            return;
+        }
+
+        if (operatorPasswords[selectedOp] && operatorPasswords[selectedOp] === inputPass) {
+            localStorage.setItem('opName', selectedOp);
+            document.getElementById('displayOpName').innerText = selectedOp;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('inputLoginPassword').value = ''; 
+            document.getElementById('inputLoginPassword').type = 'password'; // Reset tipe input ke password
+            document.getElementById('togglePasswordBtn').innerText = '👁️';
+            showToast("👋 Selamat datang, " + selectedOp + "!");
+            resetIdleTimer();
+        } else {
+            alert("❌ Password salah! Silakan coba lagi.");
+            document.getElementById('inputLoginPassword').value = '';
+            document.getElementById('inputLoginPassword').focus();
+        }
     }
 
     function gantiOperator() {
         localStorage.removeItem('opName');
+        clearTimeout(idleTimer);
         document.getElementById('selectLoginOperator').value = "";
+        document.getElementById('inputLoginPassword').value = "";
+        document.getElementById('inputLoginPassword').type = 'password';
+        document.getElementById('togglePasswordBtn').innerText = '👁️';
         document.getElementById('loginOverlay').style.display = 'flex';
     }
 
@@ -370,7 +437,6 @@
 
     document.getElementById('tgl').valueAsDate = new Date();
 
-    // MENGGUNAKAN Object.values AGAR AMAN DARI STRUKTUR OBJECT FIREBASE
     db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); });
     db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); });
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); });
@@ -648,7 +714,6 @@
             let html = `<div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
             displayItems.forEach((x) => { 
-                // MEMASTIKAN SETIAP ITEM MEMILIKI ID UNIK AMAN
                 if(!x.id) x.id = 'legacy_' + Math.random().toString(36).substr(2, 9);
                 
                 let isGlobalOldest = (x.tgl === globalOldest[x.code]);
@@ -748,7 +813,6 @@
         document.getElementById('code').focus();
     }
     
-    // MENGHAPUS BERDASARKAN ID UNIK (100% AMAN DAN AKURAT)
     function hapusStok(id) { 
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }

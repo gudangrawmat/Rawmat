@@ -135,7 +135,6 @@
             <option value="Dede">Dede</option>
         </select>
 
-        <!-- KOTAK PASSWORD DENGAN TOMBOL MATA -->
         <div style="position: relative; margin-bottom: 20px;">
             <input type="password" id="inputLoginPassword" placeholder="🔑 Masukkan Password" style="padding: 12px 40px 12px 14px; font-size: 15px; margin-bottom: 0; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; text-align: center;">
             <span id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; user-select: none;" title="Tampilkan/Sembunyikan Password">👁️</span>
@@ -203,7 +202,7 @@
         <button id="btnStok" class="nav-btn active" onclick="showPage('stok')">Stok Gudang</button>
         <div class="nav-btn" style="padding:0; position:relative;">
             <select id="selectRiwayat" onchange="showPage(this.value)" style="width:100%; height:100%; border:none; background:transparent; text-align:center; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit;">
-                <option value="" disabled selected>📜 Riwayat</option>
+                <option value="" disabled selected>📜 Menu / Riwayat</option>
                 <option value="keluar">Barang Keluar</option>
                 <option value="masuk">Riwayat Masuk</option>
                 <option value="pindah">Riwayat Pindah</option>
@@ -321,16 +320,15 @@
         "Dede": "1234"
     };
 
-    // Fungsi untuk menampilkan/menyembunyikan password saat ikon mata diklik
     function togglePasswordVisibility() {
         let passwordInput = document.getElementById('inputLoginPassword');
         let toggleBtn = document.getElementById('togglePasswordBtn');
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
-            toggleBtn.innerText = '🙈'; // Ubah ikon jadi mata tertutup
+            toggleBtn.innerText = '🙈';
         } else {
             passwordInput.type = 'password';
-            toggleBtn.innerText = '👁️'; // Ubah ikon jadi mata terbuka
+            toggleBtn.innerText = '👁️';
         }
     }
 
@@ -383,7 +381,7 @@
             document.getElementById('displayOpName').innerText = selectedOp;
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('inputLoginPassword').value = ''; 
-            document.getElementById('inputLoginPassword').type = 'password'; // Reset tipe input ke password
+            document.getElementById('inputLoginPassword').type = 'password';
             document.getElementById('togglePasswordBtn').innerText = '👁️';
             showToast("👋 Selamat datang, " + selectedOp + "!");
             resetIdleTimer();
@@ -690,67 +688,77 @@
             let prefix = getCategory(p);
             let items = data.filter(x => x.pallet == p.name);
             
+            // Logika Hide Kosong
             if (hideEmpty && items.length === 0) return;
+            if (term !== "" && items.length === 0) return; 
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
             
+            if (items.length > 0 && filtered.length === 0) return;
+
             filtered.forEach(x => {
                 if(!totalStok[x.code]) totalStok[x.code] = { count: 0, kg: 0 };
                 totalStok[x.code].count += 1; totalStok[x.code].kg += Number(x.qty);
             });
-
-            if (filtered.length === 0) return;
             
-            if (currentPages[p.name] === undefined) currentPages[p.name] = 0;
-            let totalPages = Math.ceil(filtered.length / itemsPerPage);
-            let start = currentPages[p.name] * itemsPerPage;
-            let displayItems = filtered.slice(start, start + itemsPerPage);
+            let displayItems = [];
+            let totalPages = 0;
+            if (items.length > 0) {
+                if (currentPages[p.name] === undefined) currentPages[p.name] = 0;
+                totalPages = Math.ceil(filtered.length / itemsPerPage);
+                let start = currentPages[p.name] * itemsPerPage;
+                displayItems = filtered.slice(start, start + itemsPerPage);
+            }
             
             let card = document.createElement('div');
             card.className = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
             
-            let html = `<div class="pallet-title">${p.name} (${filtered.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            let html = `<div class="pallet-title">${p.name} (${items.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
             
-            displayItems.forEach((x) => { 
-                if(!x.id) x.id = 'legacy_' + Math.random().toString(36).substr(2, 9);
-                
-                let isGlobalOldest = (x.tgl === globalOldest[x.code]);
-                let isUnlocked = unlockedItems.includes(x.id); 
-                
-                let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
+            if (items.length === 0) {
+                html += `<div style="text-align:center; color:#94a3b8; padding:20px 0; font-size:12px; font-style:italic;">Rak Kosong</div>`;
+            } else {
+                displayItems.forEach((x) => { 
+                    if(!x.id) x.id = 'legacy_' + Math.random().toString(36).substr(2, 9);
+                    
+                    let isGlobalOldest = (x.tgl === globalOldest[x.code]);
+                    let isUnlocked = unlockedItems.includes(x.id); 
+                    
+                    let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
 
-                let actionButtons = '';
-                if (isGlobalOldest || isUnlocked) {
-                    let lockButton = !isGlobalOldest ? `<button class="btn-action" style="flex:1; background:#64748b; color:white; padding:5px 2px; font-size:11px;" onclick="toggleLockItem('${x.id}')">🔒 Kunci</button>` : '';
-                    actionButtons = `<div style="display:flex; flex-direction:row; margin-top:10px; gap:4px; width:100%;">
-                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="showMoveModal('item', '${x.id}')">🚚 Pindah</button>
-                                        <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="editItem('${x.id}')">✏️ Edit</button>
-                                        <button class="btn-action btn-delete" style="flex:1; padding:5px 2px; font-size:11px;" onclick="hapusStok('${x.id}')">🗑️ Hapus</button>
-                                        ${lockButton}
-                                    </div>`;
-                } else {
-                    actionButtons = `<div style="display:flex; margin-top:10px; width:100%;">
-                                        <button class="btn-action" style="flex:1; background:#e11d48; color:white; padding:6px; font-size:12px;" onclick="toggleLockItem('${x.id}')">🔓 Buka Kunci Item</button>
-                                     </div>`;
+                    let actionButtons = '';
+                    if (isGlobalOldest || isUnlocked) {
+                        let lockButton = !isGlobalOldest ? `<button class="btn-action" style="flex:1; background:#64748b; color:white; padding:5px 2px; font-size:11px;" onclick="toggleLockItem('${x.id}')">🔒 Kunci</button>` : '';
+                        actionButtons = `<div style="display:flex; flex-direction:row; margin-top:10px; gap:4px; width:100%;">
+                                            <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="showMoveModal('item', '${x.id}')">🚚 Pindah</button>
+                                            <button class="btn-action" style="flex:1; padding:5px 2px; font-size:11px;" onclick="editItem('${x.id}')">✏️ Edit</button>
+                                            <button class="btn-action btn-delete" style="flex:1; padding:5px 2px; font-size:11px;" onclick="hapusStok('${x.id}')">🗑️ Hapus</button>
+                                            ${lockButton}
+                                        </div>`;
+                    } else {
+                        actionButtons = `<div style="display:flex; margin-top:10px; width:100%;">
+                                            <button class="btn-action" style="flex:1; background:#e11d48; color:white; padding:6px; font-size:12px;" onclick="toggleLockItem('${x.id}')">🔓 Buka Kunci Item</button>
+                                         </div>`;
+                    }
+
+                    html += `<div class="item-card">
+                                ${badge}
+                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${x.code}</div>
+                                <div style="font-size:13px; color:#4b5563;">Qty: ${x.qty} Kg</div>
+                                <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl}</div>
+                                ${actionButtons}
+                            </div>`; 
+                });
+                
+                if (totalPages > 1) {
+                    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                                <button class="btn-action" onclick="changePage('${p.name}', -1)">Prev</button>
+                                <span style="font-size:11px; font-weight:600;">${currentPages[p.name]+1}/${totalPages}</span>
+                                <button class="btn-action" onclick="changePage('${p.name}', 1)">Next</button>
+                            </div>`;
                 }
-
-                html += `<div class="item-card">
-                            ${badge}
-                            <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${x.code}</div>
-                            <div style="font-size:13px; color:#4b5563;">Qty: ${x.qty} Kg</div>
-                            <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl}</div>
-                            ${actionButtons}
-                        </div>`; 
-            });
-            
-            if (totalPages > 1) {
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                            <button class="btn-action" onclick="changePage('${p.name}', -1)">Prev</button>
-                            <span style="font-size:11px; font-weight:600;">${currentPages[p.name]+1}/${totalPages}</span>
-                            <button class="btn-action" onclick="changePage('${p.name}', 1)">Next</button>
-                        </div>`;
             }
             
             card.innerHTML = html;

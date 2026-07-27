@@ -128,7 +128,7 @@
         <h2 style="margin-top: 0; color: #1e3a8a; font-size: 1.25rem; margin-bottom: 6px;">GUDANG RAW MATERIAL</h2>
         <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">Silakan pilih nama dan masukkan password:</p>
         
-        <select id="selectLoginOperator" style="padding: 12px; font-size: 15px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; font-weight: 600; color: #1e40af; background: #eff6ff;">
+        <select id="selectLoginOperator" onkeydown="handleLoginKey(event)" style="padding: 12px; font-size: 15px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; font-weight: 600; color: #1e40af; background: #eff6ff;">
             <option value="" disabled selected>-- Pilih Operator --</option>
             <option value="Tri">Tri</option>
             <option value="Gigin">Gigin</option>
@@ -136,7 +136,7 @@
         </select>
 
         <div style="position: relative; margin-bottom: 20px;">
-            <input type="password" id="inputLoginPassword" placeholder="🔑 Masukkan Password" style="padding: 12px 40px 12px 14px; font-size: 15px; margin-bottom: 0; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; text-align: center;">
+            <input type="password" id="inputLoginPassword" placeholder="🔑 Masukkan Password" onkeydown="handleLoginKey(event)" style="padding: 12px 40px 12px 14px; font-size: 15px; margin-bottom: 0; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; text-align: center;">
             <span id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; user-select: none;" title="Tampilkan/Sembunyikan Password">👁️</span>
         </div>
 
@@ -329,6 +329,12 @@
         } else {
             passwordInput.type = 'password';
             toggleBtn.innerText = '👁️';
+        }
+    }
+
+    function handleLoginKey(e) {
+        if (e.key === 'Enter') {
+            prosesLogin();
         }
     }
 
@@ -688,7 +694,6 @@
             let prefix = getCategory(p);
             let items = data.filter(x => x.pallet == p.name);
             
-            // Logika Hide Kosong
             if (hideEmpty && items.length === 0) return;
             if (term !== "" && items.length === 0) return; 
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;

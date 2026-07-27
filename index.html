@@ -28,6 +28,11 @@
             50% { box-shadow: 0 0 15px #fcd34d, 0 0 20px #fbbf24; }
             100% { box-shadow: 0 0 5px #fcd34d; }
         }
+        @keyframes warningPulse {
+            0% { background-color: #fef2f2; border-color: #fecaca; }
+            50% { background-color: #fee2e2; border-color: #ef4444; }
+            100% { background-color: #fef2f2; border-color: #fecaca; }
+        }
         @keyframes flameShake {
             0% { transform: translateY(0); }
             25% { transform: translateY(-3px); }
@@ -90,10 +95,13 @@
         .btn-action { background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 4px; color: var(--text-muted); }
         .btn-delete { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
         .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #ffffff; border-radius: 8px; margin-bottom: 8px; }
+        .item-card.warning-stok { border: 1px solid #fca5a5; animation: warningPulse 2s infinite; }
+        
         .summary-box { padding: 20px; border-radius: var(--radius); margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
         .summary-item { background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 600; }
         
         .fifo-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fcd34d; animation: glowPulse 2s infinite; }
+        .warning-badge { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5; }
         
         #loginOverlay {
             position: fixed;
@@ -206,6 +214,7 @@
                 <option value="keluar">Barang Keluar</option>
                 <option value="masuk">Riwayat Masuk</option>
                 <option value="pindah">Riwayat Pindah</option>
+                <option value="gagal">⚠️ Riwayat Gagal Hapus</option>
             </select>
         </div>
     </div>
@@ -276,6 +285,14 @@
         </div>
         <div id="listPindah" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
     </div>
+
+    <div id="page-gagal" class="page">
+        <div class="controls">
+            <input id="cariGagal" placeholder="🔍 Cari Riwayat Gagal Hapus..." onkeyup="renderGagal()">
+            <button onclick="exportGagalCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
+        </div>
+        <div id="listGagal" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
+    </div>
 </div>
 
 <script>
@@ -309,8 +326,8 @@
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
     }
     
-    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], palletList = [], currentFilter = null; 
-    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {};
+    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], palletList = [], currentFilter = null; 
+    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {};
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
 
@@ -445,6 +462,7 @@
     db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); });
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
+    db.ref('riwayat_gagal_hapus').on('value', s => { riwayatGagalHapus = Object.values(s.val() || {}); renderGagal(); });
     db.ref('pallets_config').on('value', s => { palletList = Object.values(s.val() || {}); refreshAll(); });
 
     function toggleSummary() {
@@ -628,7 +646,7 @@
         refreshAll();
     }
     
-    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); }
+    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); }
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
     
     function getCategory(p) { 
@@ -729,7 +747,17 @@
                     let isGlobalOldest = (x.tgl === globalOldest[x.code]);
                     let isUnlocked = unlockedItems.includes(x.id); 
                     
+                    let itemDate = new Date(x.tgl);
+                    let today = new Date();
+                    let diffDays = Math.floor((today - itemDate) / (1000 * 60 * 60 * 24));
+                    let isStale = diffDays >= 7;
+
                     let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
+                    if (isStale) {
+                        badge += ` <div class="warning-badge" title="Item sudah > 7 hari di gudang, pastikan apakah sudah dipakai?">⚠️ >${diffDays} HARI (CEK)</div>`;
+                    }
+
+                    let cardClass = isStale ? 'item-card warning-stok' : 'item-card';
 
                     let actionButtons = '';
                     if (isGlobalOldest || isUnlocked) {
@@ -746,11 +774,11 @@
                                          </div>`;
                     }
 
-                    html += `<div class="item-card">
+                    html += `<div class="${cardClass}">
                                 ${badge}
                                 <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${x.code}</div>
                                 <div style="font-size:13px; color:#4b5563;">Qty: ${x.qty} Kg</div>
-                                <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl}</div>
+                                <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Masuk: ${x.tgl} (${diffDays} hari lalu)</div>
                                 ${actionButtons}
                             </div>`; 
                 });
@@ -833,6 +861,7 @@
         document.getElementById('code').focus();
     }
     
+    // FUNGSI HAPUS STOK DENGAN PENCATATAN RIWAYAT GAGAL HAPUS
     function hapusStok(id) { 
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
@@ -841,12 +870,16 @@
         
         let index = data.findIndex(x => x.id === id);
         if (index === -1) {
-            alert("⚠️ Item tidak ditemukan!");
+            alert("⚠️ Item tidak ditemukan atau sudah terhapus oleh perangkat lain!");
             return;
         }
         
         let item = data[index]; 
         let now = new Date(); 
+        
+        let backupData = [...data];
+        let backupRiwayatKeluar = [...riwayatKeluar];
+
         riwayatKeluar.push({
             code: item.code, 
             qty: item.qty, 
@@ -858,8 +891,39 @@
         }); 
         
         data.splice(index, 1); 
-        syncAndRender();
-        showToast("🗑️ Item berhasil dihapus.");
+
+        Promise.all([
+            db.ref('gudang_final').set(data),
+            db.ref('riwayat_keluar').set(riwayatKeluar)
+        ])
+        .then(() => { 
+            refreshAll();
+            showToast("🗑️ Item berhasil dihapus.");
+        })
+        .catch((error) => {
+            console.error("Gagal menghapus item ke server: ", error);
+            
+            // Kembalikan data lokal (Rollback)
+            data = backupData;
+            riwayatKeluar = backupRiwayatKeluar;
+            refreshAll();
+
+            // Catat ke log riwayat gagal hapus
+            let failedEntry = {
+                code: item.code,
+                qty: item.qty,
+                pallet: item.pallet || '-',
+                operator: opName,
+                tgl: new Date().toLocaleDateString('id-ID'),
+                jam: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                alasan: error.message || "Gagal sinkronisasi jaringan/Firebase"
+            };
+            
+            riwayatGagalHapus.push(failedEntry);
+            db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus);
+
+            alert("❌ Gagal menghapus item ke server pusat! Item dikembalikan ke stok dan kejadian ini dicatat di menu 'Riwayat Gagal Hapus'.");
+        });
     }
     
     function editItem(id) { 
@@ -885,13 +949,26 @@
             db.ref('gudang_final').set(data),
             db.ref('riwayat_keluar').set(riwayatKeluar),
             db.ref('riwayat_masuk').set(riwayatMasuk)
-        ]).then(() => { refreshAll(); });
+        ])
+        .then(() => { 
+            refreshAll(); 
+        })
+        .catch((error) => {
+            console.error("Gagal sinkronisasi ke database: ", error);
+            alert("❌ Gagal menyimpan perubahan ke server! Periksa koneksi internet Anda dan coba lagi.");
+        });
     }
 
     function hapusRiwayat(i) { 
         if (!confirm("Yakin ingin menghapus riwayat ini?")) return;
         riwayatKeluar.splice(i, 1); 
         db.ref('riwayat_keluar').set(riwayatKeluar).then(() => renderKeluar()); 
+    }
+
+    function hapusRiwayatGagal(i) {
+        if (!confirm("Yakin ingin menghapus catatan riwayat gagal ini?")) return;
+        riwayatGagalHapus.splice(i, 1);
+        db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus).then(() => renderGagal());
     }
     
     function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
@@ -916,6 +993,7 @@
     function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Pallet,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.pallet || '-'},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
     function exportMasukCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator\n"; riwayatMasuk.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Masuk.csv'; a.click(); }
     function exportPindahCSV() { let csv = "Tgl,Jam,Item,Dari,Ke,Operator\n"; riwayatPindah.forEach(x => csv += `${x.tgl},${x.jam},${x.item},${x.dari},${x.ke},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pindah.csv'; a.click(); }
+    function exportGagalCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator,Alasan\n"; riwayatGagalHapus.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator},${x.alasan}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Gagal_Hapus.csv'; a.click(); }
     
     function hapusMasuk(i) { 
         if (!confirm("Yakin ingin menghapus riwayat masuk ini?")) return;
@@ -986,9 +1064,50 @@
             
             if (totalPages > 1) {
                 html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                            <button class="btn-action" onclick="changePageMasuk('${opNameUpper}', -1)">Prev</button>
+                            <button class="btn-action" style="width:auto" onclick="changePageMasuk('${opNameUpper}', -1)">Prev</button>
                             <span style="font-size:11px;">${pageMasuk[opNameUpper]+1}/${totalPages}</span>
-                            <button class="btn-action" onclick="changePageMasuk('${opNameUpper}', 1)">Next</button>
+                            <button class="btn-action" style="width:auto" onclick="changePageMasuk('${opNameUpper}', 1)">Next</button>
+                        </div>`;
+            }
+            div.innerHTML = html;
+            list.appendChild(div);
+        });
+    }
+
+    function renderGagal() {
+        let list = document.getElementById('listGagal');
+        if (!list) return;
+        list.innerHTML = '';
+        let term = document.getElementById('cariGagal') ? document.getElementById('cariGagal').value.toLowerCase() : "";
+        let filtered = riwayatGagalHapus.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.pallet || "").toLowerCase().includes(term));
+        filtered.sort((a, b) => new Date(b.tgl + " " + b.jam) - new Date(a.tgl + " " + a.jam));
+
+        let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
+        uniqueOps.forEach(opNameUpper => {
+            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            if (pageGagal[opNameUpper] === undefined) pageGagal[opNameUpper] = 0;
+            let totalPages = Math.ceil(opItems.length / itemsPerPage);
+            let start = pageGagal[opNameUpper] * itemsPerPage;
+            let displayItems = opItems.slice(start, start + itemsPerPage);
+            
+            let div = document.createElement('div');
+            div.style.marginBottom = "20px";
+            let html = `<div style="background:#fee2e2; padding:10px; border-radius:8px; margin-bottom:10px; font-weight:bold; color:#b91c1c;">👤 ${opNameUpper} (Gagal Hapus)</div>`;
+            html += displayItems.map(x => {
+                let actualIndex = riwayatGagalHapus.indexOf(x);
+                return `<div class="item-card" style="border: 1px solid #fecaca; background: #fff5f5;">
+                            <b>${x.code}</b> | ${x.qty}Kg | <b>Rak: ${x.pallet}</b><br>
+                            <small style="color: #ef4444;">⚠️ Alasan: ${x.alasan}</small><br>
+                            <small>Tgl: ${x.tgl} | Jam: ${x.jam}</small><br>
+                            <button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusRiwayatGagal(${actualIndex})">🗑️ Hapus Catatan</button>
+                        </div>`;
+            }).join('');
+            
+            if (totalPages > 1) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                            <button class="btn-action" style="width:auto" onclick="changePageGagal('${opNameUpper}', -1)">Prev</button>
+                            <span style="font-size:11px;">${pageGagal[opNameUpper]+1}/${totalPages}</span>
+                            <button class="btn-action" style="width:auto" onclick="changePageGagal('${opNameUpper}', 1)">Next</button>
                         </div>`;
             }
             div.innerHTML = html;
@@ -1006,6 +1125,12 @@
         let totalPages = Math.ceil(riwayatMasuk.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
         pageMasuk[opName] = Math.max(0, Math.min((pageMasuk[opName] || 0) + dir, totalPages - 1));
         renderMasuk();
+    }
+
+    function changePageGagal(opName, dir) {
+        let totalPages = Math.ceil(riwayatGagalHapus.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
+        pageGagal[opName] = Math.max(0, Math.min((pageGagal[opName] || 0) + dir, totalPages - 1));
+        renderGagal();
     }
 </script>
 </body>

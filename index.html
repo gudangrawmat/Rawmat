@@ -255,7 +255,7 @@
 
     <div id="page-keluar" class="page">
         <div class="controls">
-            <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op)..." onkeyup="debounceRenderKeluar()">
+            <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op/Pallet)..." onkeyup="debounceRenderKeluar()">
             <button onclick="exportKeluarCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
         </div>
         <div id="listKeluar" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
@@ -531,8 +531,6 @@
 
         if (mode === 'rack') {
             data.forEach(item => { if (item.pallet === source) item.pallet = dest; });
-            palletList = palletList.filter(p => p.name !== source);
-            db.ref('pallets_config').set(palletList);
         } else {
             let targetItem = data.find(x => x.id === source);
             if (targetItem) targetItem.pallet = dest;
@@ -808,6 +806,15 @@
         let jumlah = parseInt(document.getElementById('jumlah').value) || 1; 
 
         if (!pallet) { alert("Harap pilih Rak/IBC terlebih dahulu!"); return; }
+
+        let pConfig = palletList.find(p => p.name === pallet);
+        let limit = pConfig ? (pConfig.limit || 4) : 4;
+        let currentCount = data.filter(x => x.pallet === pallet).length;
+
+        if (currentCount + jumlah > limit) {
+            alert(`⚠️ Rak ${pallet} tidak mencukupi!\nKapasitas maksimal: ${limit}\nTerisi saat ini: ${currentCount}\nMau ditambah: ${jumlah}\n\n(Melebihi kapasitas maksimal rak)`);
+            return;
+        }
         
         for(let i = 0; i < jumlah; i++) {
             let uniqueId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -841,7 +848,10 @@
         let item = data[index]; 
         let now = new Date(); 
         riwayatKeluar.push({
-            code: item.code, qty: item.qty, tglMasuk: item.tgl, 
+            code: item.code, 
+            qty: item.qty, 
+            tglMasuk: item.tgl, 
+            pallet: item.pallet || '-', 
             operator: opName, 
             tglKeluar: now.toISOString().split('T')[0], 
             jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -903,7 +913,7 @@
         reader.readAsText(e.target.files[0]); 
     }
 
-    function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
+    function exportKeluarCSV() { let csv = "Tgl Masuk,Tgl Keluar,Jam,Item,Qty,Pallet,Operator\n"; riwayatKeluar.forEach(x => csv += `${x.tglMasuk},${x.tglKeluar},${x.jam},${x.code},${x.qty},${x.pallet || '-'},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Barang_Keluar.csv'; a.click(); }
     function exportMasukCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator\n"; riwayatMasuk.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Masuk.csv'; a.click(); }
     function exportPindahCSV() { let csv = "Tgl,Jam,Item,Dari,Ke,Operator\n"; riwayatPindah.forEach(x => csv += `${x.tgl},${x.jam},${x.item},${x.dari},${x.ke},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pindah.csv'; a.click(); }
     
@@ -917,7 +927,7 @@
         let list = document.getElementById('listKeluar');
         list.innerHTML = '';
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
-        let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
+        let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.pallet || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
         filtered.sort((a, b) => new Date(b.tglKeluar) - new Date(a.tglKeluar));
 
         let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
@@ -935,7 +945,8 @@
             
             html += displayItems.map(x => {
                 let actualIndex = riwayatKeluar.indexOf(x);
-                return `<div class="item-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
+                let palletAsal = x.pallet ? x.pallet : '-';
+                return `<div class="item-card"><b>${x.code}</b> | ${x.qty}Kg<br><small>Asal Pallet: <b>${palletAsal}</b></small><br><small>Masuk: ${x.tglMasuk} | Keluar: ${x.tglKeluar} (${x.jam})</small><br><button class="btn-action btn-delete" style="margin-top:5px" onclick="hapusRiwayat(${actualIndex})">🗑️ Hapus</button></div>`;
             }).join('');
             
             if (totalPages > 1) {

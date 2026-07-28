@@ -214,6 +214,7 @@
                 <option value="keluar">Barang Keluar</option>
                 <option value="masuk">Riwayat Masuk</option>
                 <option value="pindah">Riwayat Pindah</option>
+                <option value="pencarian">🔍 Riwayat Pencarian</option>
                 <option value="gagal">⚠️ Riwayat Gagal Hapus</option>
             </select>
         </div>
@@ -286,6 +287,14 @@
         <div id="listPindah" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
     </div>
 
+    <div id="page-pencarian" class="page">
+        <div class="controls">
+            <input id="cariRiwayatPencarian" placeholder="🔍 Cari Kata Kunci / Operator..." onkeyup="renderPencarian()">
+            <button onclick="exportPencarianCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
+        </div>
+        <div id="listPencarian"></div>
+    </div>
+
     <div id="page-gagal" class="page">
         <div class="controls">
             <input id="cariGagal" placeholder="🔍 Cari Riwayat Gagal Hapus..." onkeyup="renderGagal()">
@@ -326,10 +335,11 @@
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
     }
     
-    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], palletList = [], currentFilter = null; 
-    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {};
+    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], riwayatPencarian = [], palletList = [], currentFilter = null; 
+    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {}, pageCari = {};
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
+    let lastSearchTerm = "";
 
     const operatorPasswords = {
         "Tri": "1234",
@@ -453,8 +463,38 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    function debounceRender() { clearTimeout(timerCari); timerCari = setTimeout(() => { render(); }, 300); }
+    function debounceRender() { 
+        clearTimeout(timerCari); 
+        timerCari = setTimeout(() => { 
+            render(); 
+            catatPencarian(); 
+        }, 300); 
+    }
     function debounceRenderKeluar() { clearTimeout(timerCariKeluar); timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300); }
+
+    function catatPencarian() {
+        let searchTerm = document.getElementById('cari').value.trim();
+        let opName = localStorage.getItem('opName') || 'Tanpa Operator';
+        
+        if (searchTerm !== "" && searchTerm !== lastSearchTerm) {
+            // DIPERBAIKI: Menggunakan Exact Match (===) agar hanya mencatat jika kode item benar-benar sama persis dengan yang ada di gudang (mencegah angka acak / salah ketik / pencocokan sebagian)
+            let isItemExists = data.some(item => (item.code || "").toLowerCase() === searchTerm.toLowerCase());
+
+            if (isItemExists) {
+                let now = new Date();
+                let newSearch = {
+                    kataKunci: searchTerm.toUpperCase(),
+                    operator: opName,
+                    tgl: now.toLocaleDateString('id-ID'),
+                    jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                };
+                
+                riwayatPencarian.push(newSearch);
+                db.ref('riwayat_pencarian').set(riwayatPencarian);
+            }
+            lastSearchTerm = searchTerm; 
+        }
+    }
 
     document.getElementById('tgl').valueAsDate = new Date();
 
@@ -463,6 +503,7 @@
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
     db.ref('riwayat_gagal_hapus').on('value', s => { riwayatGagalHapus = Object.values(s.val() || {}); renderGagal(); });
+    db.ref('riwayat_pencarian').on('value', s => { riwayatPencarian = Object.values(s.val() || {}); renderPencarian(); });
     db.ref('pallets_config').on('value', s => { palletList = Object.values(s.val() || {}); refreshAll(); });
 
     function toggleSummary() {
@@ -646,7 +687,7 @@
         refreshAll();
     }
     
-    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); }
+    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); renderPencarian(); }
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
     
     function getCategory(p) { 
@@ -716,7 +757,6 @@
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
-            // SORTING ITEM BERDASARKAN KODE / NOMOR DARI KECIL KE BESAR (NUMERIC SORT)
             filtered.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
             
             if (items.length > 0 && filtered.length === 0) return;
@@ -968,6 +1008,17 @@
         riwayatGagalHapus.splice(i, 1);
         db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus).then(() => renderGagal());
     }
+
+    function hapusRiwayatPencarian(i) {
+        let currentOp = localStorage.getItem('opName') || '';
+        if (currentOp !== 'Tri') {
+            alert("❌ Akses ditolak! Hanya user Tri yang diizinkan menghapus riwayat pencarian.");
+            return;
+        }
+        if (!confirm("Yakin ingin menghapus catatan pencarian ini?")) return;
+        riwayatPencarian.splice(i, 1);
+        db.ref('riwayat_pencarian').set(riwayatPencarian).then(() => renderPencarian());
+    }
     
     function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
     
@@ -992,6 +1043,7 @@
     function exportMasukCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator\n"; riwayatMasuk.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Masuk.csv'; a.click(); }
     function exportPindahCSV() { let csv = "Tgl,Jam,Item,Dari,Ke,Operator\n"; riwayatPindah.forEach(x => csv += `${x.tgl},${x.jam},${x.item},${x.dari},${x.ke},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pindah.csv'; a.click(); }
     function exportGagalCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator,Alasan\n"; riwayatGagalHapus.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator},${x.alasan}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Gagal_Hapus.csv'; a.click(); }
+    function exportPencarianCSV() { let csv = "Tgl,Jam,Kata Kunci,Operator\n"; riwayatPencarian.forEach(x => csv += `${x.tgl},${x.jam},${x.kataKunci},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pencarian.csv'; a.click(); }
     
     function hapusMasuk(i) { 
         if (!confirm("Yakin ingin menghapus riwayat masuk ini?")) return;
@@ -1112,6 +1164,71 @@
             list.appendChild(div);
         });
     }
+
+    function renderPencarian() {
+        let list = document.getElementById('listPencarian');
+        if (!list) return;
+        list.innerHTML = '';
+        
+        let term = document.getElementById('cariRiwayatPencarian') ? document.getElementById('cariRiwayatPencarian').value.toLowerCase() : "";
+        let filtered = riwayatPencarian.filter(x => (x.kataKunci || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term));
+        filtered.sort((a, b) => new Date(b.tgl + " " + b.jam) - new Date(a.tgl + " " + a.jam));
+
+        list.style.display = "grid";
+        list.style.gridTemplateColumns = "repeat(auto-fit, minmax(280px, 1fr))";
+        list.style.gap = "15px";
+
+        let currentOp = localStorage.getItem('opName') || '';
+        let knownOps = Object.keys(operatorPasswords);
+        let activeOps = [...new Set([...knownOps, ...filtered.map(x => x.operator || 'Tanpa Operator')])];
+
+        activeOps.forEach(opName => {
+            let opNameUpper = opName.toUpperCase();
+            let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
+            
+            if (pageCari[opNameUpper] === undefined) pageCari[opNameUpper] = 0;
+            let totalPages = Math.ceil(opItems.length / itemsPerPage) || 1;
+            let start = pageCari[opNameUpper] * itemsPerPage;
+            let displayItems = opItems.slice(start, start + itemsPerPage);
+
+            let colDiv = document.createElement('div');
+            colDiv.style.background = "rgba(255, 255, 255, 0.7)";
+            colDiv.style.border = "1px solid #cbd5e1";
+            colDiv.style.borderRadius = "12px";
+            colDiv.style.padding = "15px";
+            colDiv.style.boxShadow = "var(--shadow)";
+            colDiv.style.display = "flex";
+            colDiv.style.flexDirection = "column";
+
+            let html = `<div style="background:#f3e8ff; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#6b21a8; text-align:center;">👤 ${opNameUpper}</div>`;
+            
+            if (opItems.length === 0) {
+                html += `<div style="text-align:center; color:#94a3b8; font-size:12px; padding:20px 0; font-style:italic;">Belum ada riwayat pencarian</div>`;
+            } else {
+                html += displayItems.map(x => {
+                    let actualIndex = riwayatPencarian.indexOf(x);
+                    let deleteBtnHTML = (currentOp === 'Tri') ? `<button class="btn-action btn-delete" style="margin-top:5px; width:100%;" onclick="hapusRiwayatPencarian(${actualIndex})">🗑️ Hapus Catatan</button>` : '';
+                    
+                    return `<div class="item-card" style="margin-bottom:8px;">
+                                Mencari: <b>${x.kataKunci}</b><br>
+                                <small>Tgl: ${x.tgl} | Jam: ${x.jam}</small><br>
+                                ${deleteBtnHTML}
+                            </div>`;
+                }).join('');
+            }
+
+            if (totalPages > 1) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:10px;">
+                            <button class="btn-action" style="width:auto" onclick="changePageCari('${opNameUpper}', -1)">Prev</button>
+                            <span style="font-size:11px; font-weight:600;">${pageCari[opNameUpper]+1}/${totalPages}</span>
+                            <button class="btn-action" style="width:auto" onclick="changePageCari('${opNameUpper}', 1)">Next</button>
+                        </div>`;
+            }
+
+            colDiv.innerHTML = html;
+            list.appendChild(colDiv);
+        });
+    }
     
     function changePageKeluar(opName, dir) {
         let totalPages = Math.ceil(riwayatKeluar.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
@@ -1129,6 +1246,12 @@
         let totalPages = Math.ceil(riwayatGagalHapus.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
         pageGagal[opName] = Math.max(0, Math.min((pageGagal[opName] || 0) + dir, totalPages - 1));
         renderGagal();
+    }
+
+    function changePageCari(opName, dir) {
+        let totalPages = Math.ceil(riwayatPencarian.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opName).length / itemsPerPage);
+        pageCari[opName] = Math.max(0, Math.min((pageCari[opName] || 0) + dir, totalPages - 1));
+        renderPencarian();
     }
 </script>
 </body>

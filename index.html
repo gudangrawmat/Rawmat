@@ -715,7 +715,9 @@
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
-            filtered.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
+            
+            // SORTING ITEM BERDASARKAN KODE / NOMOR DARI KECIL KE BESAR (NUMERIC SORT)
+            filtered.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
             
             if (items.length > 0 && filtered.length === 0) return;
 
@@ -797,7 +799,7 @@
         });
         area.appendChild(fragment);
         
-        let r = ''; Object.keys(totalStok).sort().forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
+        let r = ''; Object.keys(totalStok).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
         document.getElementById('ringkasan').innerHTML = r;
     }
     
@@ -861,7 +863,6 @@
         document.getElementById('code').focus();
     }
     
-    // FUNGSI HAPUS STOK DENGAN PENCATATAN RIWAYAT GAGAL HAPUS
     function hapusStok(id) { 
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
@@ -902,13 +903,10 @@
         })
         .catch((error) => {
             console.error("Gagal menghapus item ke server: ", error);
-            
-            // Kembalikan data lokal (Rollback)
             data = backupData;
             riwayatKeluar = backupRiwayatKeluar;
             refreshAll();
 
-            // Catat ke log riwayat gagal hapus
             let failedEntry = {
                 code: item.code,
                 qty: item.qty,

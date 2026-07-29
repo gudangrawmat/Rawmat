@@ -305,6 +305,8 @@
 </div>
 
 <script>
+    const APP_VERSION = "1.0.6"; 
+
     function createStars() {
         const container = document.getElementById('star-container');
         const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
@@ -477,7 +479,6 @@
         let opName = localStorage.getItem('opName') || 'Tanpa Operator';
         
         if (searchTerm !== "" && searchTerm !== lastSearchTerm) {
-            // DIPERBAIKI: Menggunakan Exact Match (===) agar hanya mencatat jika kode item benar-benar sama persis dengan yang ada di gudang (mencegah angka acak / salah ketik / pencocokan sebagian)
             let isItemExists = data.some(item => (item.code || "").toLowerCase() === searchTerm.toLowerCase());
 
             if (isItemExists) {
@@ -498,9 +499,17 @@
 
     document.getElementById('tgl').valueAsDate = new Date();
 
-    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); });
-    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); });
-    db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); });
+    db.ref('app_version').on('value', s => {
+        let serverVersion = s.val();
+        if (serverVersion && serverVersion !== APP_VERSION) {
+            showToast("🔄 Update sistem tersedia, memuat ulang aplikasi...");
+            setTimeout(() => { location.reload(); }, 1500);
+        }
+    });
+
+    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); });
+    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); renderPencarian(); });
+    db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); renderPencarian(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
     db.ref('riwayat_gagal_hapus').on('value', s => { riwayatGagalHapus = Object.values(s.val() || {}); renderGagal(); });
     db.ref('riwayat_pencarian').on('value', s => { riwayatPencarian = Object.values(s.val() || {}); renderPencarian(); });
@@ -1207,11 +1216,39 @@
             } else {
                 html += displayItems.map(x => {
                     let actualIndex = riwayatPencarian.indexOf(x);
-                    let deleteBtnHTML = (currentOp === 'Tri') ? `<button class="btn-action btn-delete" style="margin-top:5px; width:100%;" onclick="hapusRiwayatPencarian(${actualIndex})">🗑️ Hapus Catatan</button>` : '';
+                    let keyword = (x.kataKunci || "").toLowerCase();
+                    
+                    // Hitung sisa stok aktif dengan kode ini di gudang
+                    let activeItems = data.filter(item => (item.code || "").toLowerCase() === keyword);
+                    // Ambil seluruh riwayat keluar dengan kode ini
+                    let matchingKeluar = riwayatKeluar.filter(k => (k.code || "").toLowerCase() === keyword);
+
+                    let statusDetails = "";
+
+                    if (activeItems.length > 0) {
+                        statusDetails += `<div style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin-top:4px; border:1px solid #bbf7d0;">🟢 Ada ${activeItems.length} Stok di Gudang</div>`;
+                    }
+
+                    if (matchingKeluar.length > 0) {
+                        statusDetails += `<div style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:block; margin-top:4px; border:1px solid #fecaca; text-align:center;">🔴 Ada ${matchingKeluar.length} Item yang Sudah Dihapus/Keluar:</div>`;
+                        matchingKeluar.forEach(k => {
+                            statusDetails += `<div style="font-size:11px; color:#475569; background:#fff; padding:3px 6px; border-radius:4px; margin-top:2px; border:1px solid #e2e8f0;">
+                                📅 Tgl Masuk: <b>${k.tglMasuk}</b><br>
+                                📤 Tgl Dihapus: <b>${k.tglKeluar}</b>
+                            </div>`;
+                        });
+                    }
+
+                    if (activeItems.length === 0 && matchingKeluar.length === 0) {
+                        statusDetails = `<div style="background:#f1f5f9; color:#64748b; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin-top:4px;">⚪ Tidak Ada Data</div>`;
+                    }
+
+                    let deleteBtnHTML = (currentOp === 'Tri') ? `<button class="btn-action btn-delete" style="margin-top:6px; width:100%;" onclick="hapusRiwayatPencarian(${actualIndex})">🗑️ Hapus Catatan</button>` : '';
                     
                     return `<div class="item-card" style="margin-bottom:8px;">
-                                Mencari: <b>${x.kataKunci}</b><br>
-                                <small>Tgl: ${x.tgl} | Jam: ${x.jam}</small><br>
+                                Mencari: <b>${x.kataKunci}</b>
+                                ${statusDetails}
+                                <small style="display:block; margin-top:4px; color:#94a3b8;">Cari Tgl: ${x.tgl} | Jam: ${x.jam}</small>
                                 ${deleteBtnHTML}
                             </div>`;
                 }).join('');

@@ -211,6 +211,7 @@
         <div class="nav-btn" style="padding:0; position:relative;">
             <select id="selectRiwayat" onchange="showPage(this.value)" style="width:100%; height:100%; border:none; background:transparent; text-align:center; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit;">
                 <option value="" disabled selected>📜 Menu / Riwayat</option>
+                <option value="limit">📊 Limit Barang</option>
                 <option value="keluar">Barang Keluar</option>
                 <option value="masuk">Riwayat Masuk</option>
                 <option value="pindah">Riwayat Pindah</option>
@@ -263,6 +264,23 @@
         </div>
     </div>
 
+    <div id="page-limit" class="page">
+        <div class="controls">
+            <div style="font-weight: bold; margin-bottom: 10px; color: var(--primary);">⚙️ Pengaturan & Monitoring Limit Stok Item</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px; margin-bottom:10px;">
+                <input id="limitCode" placeholder="Kode Item" list="codeList">
+                <input id="limitMin" type="number" placeholder="Min Stok (Kg)">
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <button onclick="saveItemLimit()" style="background:#2563eb; flex:1; margin-bottom:0;">Simpan Limit Item</button>
+                <button onclick="autoSetLimitDariQtyTerkecil()" style="background:#10b981; flex:1; margin-bottom:0;" title="Otomatis set limit berdasarkan Qty terkecil dari stok yang ada">⚡ Auto-Set dari Qty Terkecil</button>
+            </div>
+            <input id="cariLimit" placeholder="🔍 Cari Limit Item..." onkeyup="renderLimit()">
+            <button onclick="exportLimitCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
+        </div>
+        <div id="listLimit" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;"></div>
+    </div>
+
     <div id="page-keluar" class="page">
         <div class="controls">
             <input id="cariKeluar" placeholder="🔍 Cari Riwayat (Item/Op/Pallet)..." onkeyup="debounceRenderKeluar()">
@@ -305,7 +323,7 @@
 </div>
 
 <script>
-    const APP_VERSION = "1.0.6"; 
+    const APP_VERSION = "1.0.9"; 
 
     function createStars() {
         const container = document.getElementById('star-container');
@@ -337,8 +355,8 @@
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
     }
     
-    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], riwayatPencarian = [], palletList = [], currentFilter = null; 
-    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {}, pageCari = {};
+    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], riwayatPencarian = [], palletList = [], itemLimits = [], currentFilter = null; 
+    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {}, pageCari = {}, pageLimit = {};
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
     let lastSearchTerm = "";
@@ -507,13 +525,14 @@
         }
     });
 
-    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); });
+    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); renderLimit(); });
     db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); renderPencarian(); });
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); renderPencarian(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
     db.ref('riwayat_gagal_hapus').on('value', s => { riwayatGagalHapus = Object.values(s.val() || {}); renderGagal(); });
     db.ref('riwayat_pencarian').on('value', s => { riwayatPencarian = Object.values(s.val() || {}); renderPencarian(); });
     db.ref('pallets_config').on('value', s => { palletList = Object.values(s.val() || {}); refreshAll(); });
+    db.ref('item_limits').on('value', s => { itemLimits = s.val() || {}; renderLimit(); });
 
     function toggleSummary() {
         let el = document.getElementById('ringkasan');
@@ -696,7 +715,7 @@
         refreshAll();
     }
     
-    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); renderPencarian(); }
+    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); renderPencarian(); renderLimit(); }
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
     
     function getCategory(p) { 
@@ -1174,6 +1193,177 @@
         });
     }
 
+    function renderLimit() {
+        let list = document.getElementById('listLimit');
+        if (!list) return;
+        list.innerHTML = '';
+
+        let term = document.getElementById('cariLimit') ? document.getElementById('cariLimit').value.toLowerCase() : "";
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
+        let filteredCodes = allCodes.filter(c => c.toLowerCase().includes(term));
+
+        if (filteredCodes.length === 0) {
+            list.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">Belum ada data limit item.</div>';
+            return;
+        }
+
+        if (pageLimit['MAIN'] === undefined) pageLimit['MAIN'] = 0;
+        let totalPages = Math.ceil(filteredCodes.length / itemsPerPage);
+        let start = pageLimit['MAIN'] * itemsPerPage;
+        let displayCodes = filteredCodes.slice(start, start + itemsPerPage);
+
+        let html = displayCodes.map(code => {
+            let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+            let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
+
+            let limitData = itemLimits[code] || { min: '-' };
+            let min = limitData.min;
+
+            let statusBadge = `<span style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold;">⚪ Belum Diset</span>`;
+            let cardStyle = "";
+
+            if (min !== '-') {
+                if (currentStockQty < Number(min)) {
+                    statusBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fecaca;">⚠️ Stok Di Bawah Minimum</span>`;
+                    cardStyle = "border: 1px solid #fca5a5; background: #fff5f5;";
+                } else {
+                    statusBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #bbf7d0;">✅ Stok Aman</span>`;
+                }
+            }
+
+            return `<div class="item-card" style="${cardStyle}">
+                        <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${code}</div>
+                        <div style="font-size:13px; color:#4b5563;">Stok Saat Ini: <b>${currentStockQty} Kg</b> (${currentCount} Pcs)</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:4px;">Min Limit: <b>${min} Kg</b></div>
+                        <div style="margin-top:6px;">${statusBadge}</div>
+                        <div style="display:flex; gap:5px; margin-top:8px;">
+                            <button class="btn-action" style="flex:1; font-size:11px;" onclick="editLimitPrompt('${code}', '${min}')">✏️ Edit</button>
+                            <button class="btn-action btn-delete" style="flex:1; font-size:11px;" onclick="hapusItemLimit('${code}')">🗑️ Hapus</button>
+                        </div>
+                    </div>`;
+        }).join('');
+
+        if (totalPages > 1) {
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; grid-column: 1/-1;">
+                        <button class="btn-action" onclick="changePageLimit(-1)">Prev</button>
+                        <span style="font-size:11px; font-weight:600;">${pageLimit['MAIN']+1}/${totalPages}</span>
+                        <button class="btn-action" onclick="changePageLimit(1)">Next</button>
+                    </div>`;
+        }
+
+        list.innerHTML = html;
+    }
+
+    function changePageLimit(dir) {
+        let term = document.getElementById('cariLimit') ? document.getElementById('cariLimit').value.toLowerCase() : "";
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
+        let filteredCodes = allCodes.filter(c => c.toLowerCase().includes(term));
+        let totalPages = Math.ceil(filteredCodes.length / itemsPerPage);
+        pageLimit['MAIN'] = Math.max(0, Math.min((pageLimit['MAIN'] || 0) + dir, totalPages - 1));
+        renderLimit();
+    }
+
+    function saveItemLimit() {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        let code = document.getElementById('limitCode').value.trim().toUpperCase();
+        let min = parseInt(document.getElementById('limitMin').value) || 0;
+
+        if (!code) {
+            alert("⚠️ Harap masukkan Kode Item terlebih dahulu!");
+            return;
+        }
+
+        itemLimits[code] = { min, updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
+        db.ref('item_limits').set(itemLimits).then(() => {
+            showToast("✅ Limit item berhasil disimpan!");
+            document.getElementById('limitCode').value = '';
+            document.getElementById('limitMin').value = '';
+            renderLimit();
+        });
+    }
+
+    function autoSetLimitDariQtyTerkecil() {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        if (!confirm("⚡ Apakah Anda ingin mengisi otomatis limit minimum semua item berdasarkan Qty terkecil dari setiap item di stok saat ini?")) return;
+
+        let uniqueCodes = [...new Set(data.map(x => (x.code || "").toUpperCase()))].filter(Boolean);
+        if (uniqueCodes.length === 0) {
+            alert("⚠️ Tidak ada data stok di gudang saat ini!");
+            return;
+        }
+
+        uniqueCodes.forEach(code => {
+            let itemEntries = data.filter(x => (x.code || "").toUpperCase() === code);
+            let qtys = itemEntries.map(x => Number(x.qty || 0)).filter(q => q > 0);
+            if (qtys.length > 0) {
+                let minQty = Math.min(...qtys);
+                itemLimits[code] = {
+                    min: minQty,
+                    updatedBy: opName,
+                    updatedAt: new Date().toLocaleDateString('id-ID')
+                };
+            }
+        });
+
+        db.ref('item_limits').set(itemLimits).then(() => {
+            showToast("✅ Berhasil mengisi otomatis limit minimum berdasarkan Qty terkecil!");
+            renderLimit();
+        });
+    }
+
+    function hapusItemLimit(code) {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        if (!confirm(`Yakin ingin menghapus pengaturan limit untuk item ${code}?`)) return;
+        delete itemLimits[code];
+        db.ref('item_limits').set(itemLimits).then(() => {
+            showToast("🗑️ Limit item dihapus.");
+            renderLimit();
+        });
+    }
+
+    function editLimitPrompt(code, currentMin) {
+        let m = prompt(`Edit Min Limit untuk ${code}:`, currentMin === '-' ? '' : currentMin);
+        if (m === null) return;
+
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        itemLimits[code] = {
+            min: parseInt(m) || 0,
+            updatedBy: opName,
+            updatedAt: new Date().toLocaleDateString('id-ID')
+        };
+        db.ref('item_limits').set(itemLimits).then(() => {
+            showToast("✅ Limit item diperbarui!");
+            renderLimit();
+        });
+    }
+
+    function exportLimitCSV() {
+        let csv = "Kode Item,Stok Saat Ini (Kg),Min Limit,Status\n";
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
+        allCodes.forEach(code => {
+            let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+            let limitData = itemLimits[code] || { min: '-' };
+            let status = "Belum Diset";
+            if (limitData.min !== '-') {
+                if (currentStockQty < Number(limitData.min)) status = "Di Bawah Minimum";
+                else status = "Aman";
+            }
+            csv += `${code},${currentStockQty},${limitData.min},${status}\n`;
+        });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+        a.download = 'Limit_Barang.csv';
+        a.click();
+    }
+
     function renderPencarian() {
         let list = document.getElementById('listPencarian');
         if (!list) return;
@@ -1218,9 +1408,7 @@
                     let actualIndex = riwayatPencarian.indexOf(x);
                     let keyword = (x.kataKunci || "").toLowerCase();
                     
-                    // Hitung sisa stok aktif dengan kode ini di gudang
                     let activeItems = data.filter(item => (item.code || "").toLowerCase() === keyword);
-                    // Ambil seluruh riwayat keluar dengan kode ini
                     let matchingKeluar = riwayatKeluar.filter(k => (k.code || "").toLowerCase() === keyword);
 
                     let statusDetails = "";

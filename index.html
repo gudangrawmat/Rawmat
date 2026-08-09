@@ -33,6 +33,11 @@
             50% { background-color: #fee2e2; border-color: #ef4444; }
             100% { background-color: #fef2f2; border-color: #fecaca; }
         }
+        @keyframes yellowPulse {
+            0% { background-color: #fefce8; border-color: #fde047; }
+            50% { background-color: #fef9c3; border-color: #facc15; }
+            100% { background-color: #fefce8; border-color: #fde047; }
+        }
         @keyframes flameShake {
             0% { transform: translateY(0); }
             25% { transform: translateY(-3px); }
@@ -64,6 +69,31 @@
         @keyframes fadein { from {top: 0; opacity: 0;} to {top: 30px; opacity: 1;} }
         @keyframes fadeout { from {top: 30px; opacity: 1;} to {top: 0; opacity: 0;} }
 
+        /* Stacking Search Notification Container */
+        .search-popup-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .search-popup-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #93c5fd;
+            border-left: 6px solid #2563eb;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+            animation: zoomIn 0.3s ease-out;
+        }
+
         .status-indicator { position: fixed; bottom: 20px; right: 20px; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px; z-index: 1000; box-shadow: var(--shadow); background: white; }
         .online { color: #166534; border: 1px solid #bbf7d0; }
         .offline { color: #991b1b; border: 1px solid #fecaca; }
@@ -85,7 +115,7 @@
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
         button:hover { opacity: 0.9; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: var(--radius); width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         
         .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
@@ -96,12 +126,13 @@
         .btn-delete { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
         .item-card { font-size: 13px; padding: 10px; border: 1px solid #f1f5f9; background: #ffffff; border-radius: 8px; margin-bottom: 8px; }
         .item-card.warning-stok { border: 1px solid #fca5a5; animation: warningPulse 2s infinite; }
+        .item-card.critical-stok { border: 1px solid #facc15; animation: yellowPulse 2s infinite; }
         
         .summary-box { padding: 20px; border-radius: var(--radius); margin-top: 20px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); }
-        .summary-item { background: #eff6ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 600; }
         
         .fifo-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fcd34d; animation: glowPulse 2s infinite; }
         .warning-badge { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5; }
+        .critical-badge { background: #fef9c3; color: #854d0e; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde047; }
         
         #loginOverlay {
             position: fixed;
@@ -155,6 +186,9 @@
 <div class="star-container" id="star-container"></div>
 <div id="toast" class="toast"></div>
 <div id="statusIndicator" class="status-indicator online">● Online</div>
+
+<!-- Stacking Notification Container for Search Confirmations -->
+<div id="searchConfirmContainer" class="search-popup-container"></div>
 
 <div id="rackModal" class="modal">
     <div class="modal-content">
@@ -212,6 +246,7 @@
             <select id="selectRiwayat" onchange="showPage(this.value)" style="width:100%; height:100%; border:none; background:transparent; text-align:center; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit;">
                 <option value="" disabled selected>📜 Menu / Riwayat</option>
                 <option value="limit">📊 Limit Barang</option>
+                <option value="kurang-lebih">⚖️ Stok Kurang & Lebih</option>
                 <option value="keluar">Barang Keluar</option>
                 <option value="masuk">Riwayat Masuk</option>
                 <option value="pindah">Riwayat Pindah</option>
@@ -231,9 +266,9 @@
             <div class="filter-group" id="filterNav"></div>
             
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
-                <input id="cari" placeholder="🔍 Cari Item..." onkeyup="debounceRender()" style="margin-bottom:0; flex:1;">
+                <input id="cari" placeholder="🔍 Cari Item (Muncul notif jika kode item diketik persis)..." oninput="handleAutoSearch()" style="margin-bottom:0; flex:1;">
                 <div style="display:flex; gap: 15px; align-items: center;">
-                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; color:var(--text-muted);">
+                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; color:var(--text-muted); white-space: nowrap; margin-bottom: 0;">
                         <input type="checkbox" id="hideEmpty" onchange="render()" style="width: auto; margin: 0 5px 0 0;"> Hide Kosong
                     </label>
                 </div>
@@ -260,7 +295,7 @@
             <div style="font-weight:bold; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;" onclick="toggleSummary()">
                 Total Stok (Hasil Filter) <span id="summaryIcon">▼</span>
             </div>
-            <div id="ringkasan" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;"></div>
+            <div id="ringkasan"></div>
         </div>
     </div>
 
@@ -273,12 +308,45 @@
             </div>
             <div style="display:flex; gap:10px; margin-bottom:10px;">
                 <button onclick="saveItemLimit()" style="background:#2563eb; flex:1; margin-bottom:0;">Simpan Limit Item</button>
-                <button onclick="autoSetLimitDariQtyTerkecil()" style="background:#10b981; flex:1; margin-bottom:0;" title="Otomatis set limit berdasarkan Qty terkecil dari stok yang ada">⚡ Auto-Set dari Qty Terkecil</button>
+                <button onclick="autoSetLimitDariQtyTerkecil()" style="background:#10b981; flex:1; margin-bottom:0;" title="Otomatis set limit berdasarkan Qty terkecil">⚡ Auto-Set dari Qty Terkecil</button>
             </div>
-            <input id="cariLimit" placeholder="🔍 Cari Limit Item..." onkeyup="renderLimit()">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <input id="cariLimit" placeholder="🔍 Cari Limit Item..." onkeyup="renderLimit()" style="margin-bottom:0; flex:1;">
+                <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; color:var(--text-muted); white-space: nowrap; margin-bottom: 0;">
+                    <input type="checkbox" id="filterCriticalOnly" onchange="renderLimit()" style="width: auto; margin: 0 5px 0 0;"> ⚠️ Hanya Critical
+                </label>
+            </div>
+
             <button onclick="exportLimitCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
         </div>
-        <div id="listLimit" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;"></div>
+        <div id="listLimit"></div>
+    </div>
+
+    <div id="page-kurang-lebih" class="page">
+        <div class="controls">
+            <div style="font-weight: bold; margin-bottom: 10px; color: var(--primary);">⚖️ Form Input & Daftar Stok Kurang & Lebih</div>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:10px;">
+                <input id="klCode" placeholder="Kode Item" list="codeList">
+                <input id="klQty" type="number" placeholder="Qty (Kg)">
+                <select id="klStatus" style="margin-bottom:0;">
+                    <option value="Kurang">⚠️ Stok Kurang</option>
+                    <option value="Lebih">📦 Stok Lebih</option>
+                </select>
+                <input id="klTgl" type="date">
+            </div>
+            <button onclick="tambahKurangLebih()" style="width: 100%; margin-bottom: 15px; background:#22c55e;">+ Simpan Item Kurang/Lebih</button>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; overflow-x: auto; align-items: center;">
+                <input id="cariKurangLebih" placeholder="🔍 Cari Item Kurang/Lebih..." onkeyup="renderKurangLebih()" style="margin-bottom:0; flex:1;">
+                <button class="filter-btn active" id="btnKLAll" onclick="setFilterKL('all')">Semua</button>
+                <button class="filter-btn" id="btnKLCukup" onclick="setFilterKL('kurang')">⚠️ Kurang</button>
+                <button class="filter-btn" id="btnKLLebih" onclick="setFilterKL('lebih')">📦 Lebih</button>
+            </div>
+            <button onclick="exportKurangLebihCSV()" style="background:#f59e0b; margin-top:5px;">📥 Export Excel (.csv)</button>
+        </div>
+        <div id="listKurangLebih"></div>
     </div>
 
     <div id="page-keluar" class="page">
@@ -323,7 +391,7 @@
 </div>
 
 <script>
-    const APP_VERSION = "1.0.9"; 
+    const APP_VERSION = "1.0.39"; 
 
     function createStars() {
         const container = document.getElementById('star-container');
@@ -355,11 +423,12 @@
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
     }
     
-    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], riwayatPencarian = [], palletList = [], itemLimits = [], currentFilter = null; 
-    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {}, pageCari = {}, pageLimit = {};
+    let riwayatPindah = [], data = [], riwayatKeluar = [], riwayatMasuk = [], riwayatGagalHapus = [], riwayatPencarian = [], palletList = [], itemLimits = [], dataKurangLebih = [], currentFilter = null; 
+    let itemsPerPage = 5, currentPages = {}, pageKeluar = {}, pageMasuk = {}, pagePindah = {}, pageGagal = {}, pageCari = {}, pageLimit = {}, pageKurangLebih = {};
     let timerCari, timerCariKeluar;
     let unlockedItems = []; 
-    let lastSearchTerm = "";
+    let currentFilterKL = 'all';
+    let pendingSearches = []; 
 
     const operatorPasswords = {
         "Tri": "1234",
@@ -414,7 +483,166 @@
         } else {
             document.getElementById('loginOverlay').style.display = 'flex';
         }
+
+        let searchInput = document.getElementById('cari');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    let term = document.getElementById('cari').value.trim().toUpperCase();
+                    let exactMatchItem = data.find(item => (item.code || "").toUpperCase() === term);
+                    if (term !== "" && exactMatchItem) {
+                        render();
+                        addSearchNotification(exactMatchItem.code);
+                    }
+                }
+            });
+        }
     });
+
+    function handleAutoSearch() {
+        debounceRender();
+        
+        let term = document.getElementById('cari').value.trim().toUpperCase();
+        if (term === "") return;
+
+        let exactMatchItem = data.find(item => (item.code || "").toUpperCase() === term);
+        if (exactMatchItem) {
+            addSearchNotification(exactMatchItem.code);
+        }
+    }
+
+    function addSearchNotification(code) {
+        if (!pendingSearches.some(x => x.code === code)) {
+            let notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            pendingSearches.push({ id: notifId, code: code });
+            renderSearchNotifications();
+        }
+    }
+
+    function renderSearchNotifications() {
+        let container = document.getElementById('searchConfirmContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        pendingSearches.forEach(notif => {
+            let card = document.createElement('div');
+            card.className = 'search-popup-card';
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: bold; font-size: 13px; color: #1e40af;">💡 Konfirmasi Pemakaian Item</span>
+                    <span onclick="removeSearchNotification('${notif.id}')" style="cursor: pointer; font-size: 14px; color: #64748b; font-weight: bold;">✕</span>
+                </div>
+                <p style="font-size: 13px; color: #334155; margin: 0 0 12px 0; font-weight: 500;">Apakah item <b>${notif.code}</b> jadi dipakai?</p>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="confirmSearchNotification('${notif.id}', '${notif.code}', true)" style="background: #22c55e; padding: 6px 10px; font-size: 12px; margin-bottom: 0; border-radius: 6px; flex: 1;">Ya (Dipakai)</button>
+                    <button onclick="confirmSearchNotification('${notif.id}', '${notif.code}', false)" style="background: #ef4444; padding: 6px 10px; font-size: 12px; margin-bottom: 0; border-radius: 6px; flex: 1;">Tidak</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function removeSearchNotification(id) {
+        pendingSearches = pendingSearches.filter(x => x.id !== id);
+        renderSearchNotifications();
+    }
+
+    function checkActivePopupValidity() {
+        let updated = pendingSearches.filter(notif => {
+            let currentCount = data.filter(item => (item.code || "").toUpperCase() === notif.code.toUpperCase()).length;
+            if (currentCount === 0) {
+                showToast(`ℹ️ Notif untuk item ${notif.code} ditutup karena stoknya sudah habis/dihapus.`);
+                return false;
+            }
+            return true;
+        });
+        if (updated.length !== pendingSearches.length) {
+            pendingSearches = updated;
+            renderSearchNotifications();
+        }
+    }
+
+    function confirmSearchNotification(id, code, isUsed) {
+        let opName = localStorage.getItem('opName') || 'Tanpa Operator';
+        if (!opName || opName === 'Tanpa Operator') {
+            removeSearchNotification(id);
+            gantiOperator();
+            return;
+        }
+
+        let now = new Date();
+        let tglStr = now.toLocaleDateString('id-ID');
+        let jamStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        // Update atau Tambah entri riwayat pencarian per item per operator
+        let existingIndex = riwayatPencarian.findIndex(x => 
+            (x.kataKunci || "").toUpperCase() === code.toUpperCase() && 
+            (x.operator || "").toUpperCase() === opName.toUpperCase()
+        );
+
+        let searchData = {
+            kataKunci: code.toUpperCase(),
+            operator: opName,
+            konfirmasi: isUsed ? "Ya" : "Tidak",
+            tglHapus: isUsed ? tglStr : "",
+            tgl: tglStr,
+            jam: jamStr
+        };
+
+        if (existingIndex > -1) {
+            riwayatPencarian[existingIndex] = searchData;
+        } else {
+            riwayatPencarian.push(searchData);
+        }
+        db.ref('riwayat_pencarian').set(riwayatPencarian);
+
+        if (isUsed) {
+            let matchingItems = data.filter(item => (item.code || "").toUpperCase() === code);
+            matchingItems.sort((a, b) => new Date(a.tgl) - new Date(b.tgl)); 
+            
+            if (matchingItems.length > 0) {
+                let itemToUse = matchingItems[0];
+                let index = data.findIndex(x => x.id === itemToUse.id);
+                
+                if (index > -1) {
+                    let backupData = [...data];
+                    let backupRiwayatKeluar = [...riwayatKeluar];
+
+                    riwayatKeluar.push({
+                        code: itemToUse.code, 
+                        qty: itemToUse.qty, 
+                        tglMasuk: itemToUse.tgl, 
+                        pallet: itemToUse.pallet || '-', 
+                        operator: opName, 
+                        tglKeluar: now.toISOString().split('T')[0], 
+                        jam: jamStr
+                    }); 
+                    
+                    data.splice(index, 1); 
+
+                    Promise.all([
+                        db.ref('gudang_final').set(data),
+                        db.ref('riwayat_keluar').set(riwayatKeluar)
+                    ])
+                    .then(() => { 
+                        refreshAll();
+                        showToast(`✅ Item ${code} berhasil dicatat jadi dipakai (keluar).`);
+                    })
+                    .catch((error) => {
+                        console.error("Gagal mencatat pemakaian item: ", error);
+                        data = backupData;
+                        riwayatKeluar = backupRiwayatKeluar;
+                        refreshAll();
+                        alert("❌ Gagal menyinkronkan data pemakaian ke server pusat.");
+                    });
+                }
+            }
+        } else {
+            showToast(`ℹ️ Item ${code} dikonfirmasi tidak dipakai.`);
+        }
+
+        removeSearchNotification(id);
+    }
 
     function prosesLogin() {
         let selectedOp = document.getElementById('selectLoginOperator').value;
@@ -487,35 +715,12 @@
         clearTimeout(timerCari); 
         timerCari = setTimeout(() => { 
             render(); 
-            catatPencarian(); 
         }, 300); 
     }
     function debounceRenderKeluar() { clearTimeout(timerCariKeluar); timerCariKeluar = setTimeout(() => { pageKeluar = {}; renderKeluar(); }, 300); }
 
-    function catatPencarian() {
-        let searchTerm = document.getElementById('cari').value.trim();
-        let opName = localStorage.getItem('opName') || 'Tanpa Operator';
-        
-        if (searchTerm !== "" && searchTerm !== lastSearchTerm) {
-            let isItemExists = data.some(item => (item.code || "").toLowerCase() === searchTerm.toLowerCase());
-
-            if (isItemExists) {
-                let now = new Date();
-                let newSearch = {
-                    kataKunci: searchTerm.toUpperCase(),
-                    operator: opName,
-                    tgl: now.toLocaleDateString('id-ID'),
-                    jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                };
-                
-                riwayatPencarian.push(newSearch);
-                db.ref('riwayat_pencarian').set(riwayatPencarian);
-            }
-            lastSearchTerm = searchTerm; 
-        }
-    }
-
     document.getElementById('tgl').valueAsDate = new Date();
+    document.getElementById('klTgl').valueAsDate = new Date();
 
     db.ref('app_version').on('value', s => {
         let serverVersion = s.val();
@@ -525,19 +730,20 @@
         }
     });
 
-    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); renderLimit(); });
-    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); renderPencarian(); });
+    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); renderLimit(); checkActivePopupValidity(); });
+    db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); renderPencarian(); renderLimit(); });
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); renderPencarian(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
     db.ref('riwayat_gagal_hapus').on('value', s => { riwayatGagalHapus = Object.values(s.val() || {}); renderGagal(); });
     db.ref('riwayat_pencarian').on('value', s => { riwayatPencarian = Object.values(s.val() || {}); renderPencarian(); });
     db.ref('pallets_config').on('value', s => { palletList = Object.values(s.val() || {}); refreshAll(); });
     db.ref('item_limits').on('value', s => { itemLimits = s.val() || {}; renderLimit(); });
+    db.ref('stok_kurang_lebih').on('value', s => { dataKurangLebih = Object.values(s.val() || {}); renderKurangLebih(); });
 
     function toggleSummary() {
         let el = document.getElementById('ringkasan');
         let icon = document.getElementById('summaryIcon');
-        if (el.style.display === 'none') { el.style.display = 'grid'; icon.innerText = '▼'; }
+        if (el.style.display === 'none') { el.style.display = 'block'; icon.innerText = '▼'; }
         else { el.style.display = 'none'; icon.innerText = '▲'; }
     }
 
@@ -715,7 +921,7 @@
         refreshAll();
     }
     
-    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); renderPencarian(); renderLimit(); }
+    function refreshAll() { renderFilters(); updatePalletSelect(); render(); renderKeluar(); renderMasuk(); renderPindah(); renderGagal(); renderPencarian(); renderLimit(); renderKurangLebih(); }
     const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
     
     function getCategory(p) { 
@@ -766,6 +972,14 @@
             return;
         }
 
+        let globalItemTotals = {};
+        data.forEach(item => {
+            let c = (item.code || "").toUpperCase();
+            if(!globalItemTotals[c]) globalItemTotals[c] = { count: 0, kg: 0 };
+            globalItemTotals[c].count += 1;
+            globalItemTotals[c].kg += Number(item.qty || 0);
+        });
+
         let globalOldest = {};
         data.forEach(item => {
             let itemDate = new Date(item.tgl);
@@ -785,7 +999,14 @@
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
-            filtered.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
+            filtered.sort((a, b) => {
+                let dateA = new Date(a.tgl);
+                let dateB = new Date(b.tgl);
+                if (dateA - dateB !== 0) {
+                    return dateA - dateB; 
+                }
+                return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+            });
             
             if (items.length > 0 && filtered.length === 0) return;
 
@@ -814,6 +1035,11 @@
                 displayItems.forEach((x) => { 
                     if(!x.id) x.id = 'legacy_' + Math.random().toString(36).substr(2, 9);
                     
+                    let codeUpper = (x.code || "").toUpperCase();
+                    let totalCount = globalItemTotals[codeUpper] ? globalItemTotals[codeUpper].count : 1;
+                    let totalKg = globalItemTotals[codeUpper] ? globalItemTotals[codeUpper].kg : Number(x.qty || 0);
+
+                    let isCritical = (totalCount === 1 || totalKg === 1);
                     let isGlobalOldest = (x.tgl === globalOldest[x.code]);
                     let isUnlocked = unlockedItems.includes(x.id); 
                     
@@ -823,11 +1049,14 @@
                     let isStale = diffDays >= 7;
 
                     let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
+                    if (isCritical) {
+                        badge += ` <div class="critical-badge">⚠️ Critical (Sisa 1)</div>`;
+                    }
                     if (isStale) {
                         badge += ` <div class="warning-badge" title="Item sudah > 7 hari di gudang, pastikan apakah sudah dipakai?">⚠️ >${diffDays} HARI (CEK)</div>`;
                     }
 
-                    let cardClass = isStale ? 'item-card warning-stok' : 'item-card';
+                    let cardClass = isCritical ? 'item-card critical-stok' : (isStale ? 'item-card warning-stok' : 'item-card');
 
                     let actionButtons = '';
                     if (isGlobalOldest || isUnlocked) {
@@ -867,8 +1096,31 @@
         });
         area.appendChild(fragment);
         
-        let r = ''; Object.keys(totalStok).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).forEach(k => r += `<div class="summary-item"><b>${k}</b><br>${totalStok[k].count} Pcs | ${totalStok[k].kg} Kg</div>`);
-        document.getElementById('ringkasan').innerHTML = r;
+        let rTableHTML = `<div style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); padding: 5px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: #1e40af; color: white; text-align: left;">
+                        <th style="padding: 10px; border-top-left-radius: 8px;">Kode Item</th>
+                        <th style="padding: 10px; text-align: center;">Jumlah Pcs</th>
+                        <th style="padding: 10px; text-align: right; border-top-right-radius: 8px;">Total Kg</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        let sortedKeys = Object.keys(totalStok).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true}));
+        if(sortedKeys.length === 0) {
+            rTableHTML += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#64748b; font-style:italic;">Tidak ada data stok.</td></tr>`;
+        } else {
+            sortedKeys.forEach(k => {
+                rTableHTML += `<tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 10px; font-weight: bold;">${k}</td>
+                    <td style="padding: 10px; text-align: center;">${totalStok[k].count} Pcs</td>
+                    <td style="padding: 10px; text-align: right; font-weight: 600; color: #2563eb;">${totalStok[k].kg} Kg</td>
+                </tr>`;
+            });
+        }
+        rTableHTML += `</tbody></table></div>`;
+        document.getElementById('ringkasan').innerHTML = rTableHTML;
     }
     
     function changePage(palletName, dir) {
@@ -945,7 +1197,11 @@
         
         let item = data[index]; 
         let now = new Date(); 
+        let jamStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         
+        pendingSearches = pendingSearches.filter(n => n.code.toUpperCase() !== item.code.toUpperCase());
+        renderSearchNotifications();
+
         let backupData = [...data];
         let backupRiwayatKeluar = [...riwayatKeluar];
 
@@ -956,7 +1212,7 @@
             pallet: item.pallet || '-', 
             operator: opName, 
             tglKeluar: now.toISOString().split('T')[0], 
-            jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            jam: jamStr
         }); 
         
         data.splice(index, 1); 
@@ -981,7 +1237,7 @@
                 pallet: item.pallet || '-',
                 operator: opName,
                 tgl: new Date().toLocaleDateString('id-ID'),
-                jam: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                jam: jamStr,
                 alasan: error.message || "Gagal sinkronisasi jaringan/Firebase"
             };
             
@@ -1071,7 +1327,7 @@
     function exportMasukCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator\n"; riwayatMasuk.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Masuk.csv'; a.click(); }
     function exportPindahCSV() { let csv = "Tgl,Jam,Item,Dari,Ke,Operator\n"; riwayatPindah.forEach(x => csv += `${x.tgl},${x.jam},${x.item},${x.dari},${x.ke},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pindah.csv'; a.click(); }
     function exportGagalCSV() { let csv = "Tgl,Jam,Item,Qty,Pallet,Operator,Alasan\n"; riwayatGagalHapus.forEach(x => csv += `${x.tgl},${x.jam},${x.code},${x.qty},${x.pallet},${x.operator},${x.alasan}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Gagal_Hapus.csv'; a.click(); }
-    function exportPencarianCSV() { let csv = "Tgl,Jam,Kata Kunci,Operator\n"; riwayatPencarian.forEach(x => csv += `${x.tgl},${x.jam},${x.kataKunci},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pencarian.csv'; a.click(); }
+    function exportPencarianCSV() { let csv = "Tgl Terakhir,Jam Terakhir,Kata Kunci,Konfirmasi,Tgl Hapus,Operator\n"; riwayatPencarian.forEach(x => csv += `${x.tgl},${x.jam},${x.kataKunci},${x.konfirmasi || '-'},${x.tglHapus || '-'},${x.operator}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Riwayat_Pencarian.csv'; a.click(); }
     
     function hapusMasuk(i) { 
         if (!confirm("Yakin ingin menghapus riwayat masuk ini?")) return;
@@ -1199,11 +1455,40 @@
         list.innerHTML = '';
 
         let term = document.getElementById('cariLimit') ? document.getElementById('cariLimit').value.toLowerCase() : "";
-        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
-        let filteredCodes = allCodes.filter(c => c.toLowerCase().includes(term));
+        let filterCriticalOnly = document.getElementById('filterCriticalOnly') ? document.getElementById('filterCriticalOnly').checked : false;
+        
+        let keluarCounts = {};
+        riwayatKeluar.forEach(x => {
+            let c = (x.code || "").toUpperCase();
+            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
+        });
+
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
+        allCodes.sort((a, b) => {
+            let countA = keluarCounts[a.toUpperCase()] || 0;
+            let countB = keluarCounts[b.toUpperCase()] || 0;
+            if (countB !== countA) {
+                return countB - countA; 
+            }
+            return a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
+        });
+        
+        let filteredCodes = allCodes.filter(code => {
+            let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+            let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
+            let isCritical = (currentStockQty === 1 || currentCount === 1);
+
+            let matchesTerm = code.toLowerCase().includes(term);
+            if (!matchesTerm) return false;
+
+            if (filterCriticalOnly) {
+                return isCritical;
+            }
+            return true;
+        });
 
         if (filteredCodes.length === 0) {
-            list.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">Belum ada data limit item.</div>';
+            list.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Tidak ada data limit item yang sesuai filter.</div>';
             return;
         }
 
@@ -1212,7 +1497,7 @@
         let start = pageLimit['MAIN'] * itemsPerPage;
         let displayCodes = filteredCodes.slice(start, start + itemsPerPage);
 
-        let html = displayCodes.map(code => {
+        let rowsHTML = displayCodes.map(code => {
             let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
             let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
 
@@ -1220,44 +1505,91 @@
             let min = limitData.min;
 
             let statusBadge = `<span style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold;">⚪ Belum Diset</span>`;
-            let cardStyle = "";
+            let rowStyle = "";
 
-            if (min !== '-') {
-                if (currentStockQty < Number(min)) {
-                    statusBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fecaca;">⚠️ Stok Di Bawah Minimum</span>`;
-                    cardStyle = "border: 1px solid #fca5a5; background: #fff5f5;";
+            if (currentStockQty === 1 || currentCount === 1) {
+                statusBadge = `<span style="background:#fef9c3; color:#854d0e; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fde047;">⚠️ Critical (Sisa 1)</span>`;
+                rowStyle = "background: #fefce8;";
+            } else if (min !== '-') {
+                let minVal = Number(min);
+                if (currentStockQty < minVal) {
+                    statusBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fecaca;">⚠️ Kurang</span>`;
+                    rowStyle = "background: #fff5f5;";
                 } else {
-                    statusBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #bbf7d0;">✅ Stok Aman</span>`;
+                    statusBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #bbf7d0;">✅ Aman</span>`;
                 }
             }
 
-            return `<div class="item-card" style="${cardStyle}">
-                        <div style="font-weight:bold; font-size:14px; margin-bottom:4px">${code}</div>
-                        <div style="font-size:13px; color:#4b5563;">Stok Saat Ini: <b>${currentStockQty} Kg</b> (${currentCount} Pcs)</div>
-                        <div style="font-size:12px; color:#64748b; margin-top:4px;">Min Limit: <b>${min} Kg</b></div>
-                        <div style="margin-top:6px;">${statusBadge}</div>
-                        <div style="display:flex; gap:5px; margin-top:8px;">
-                            <button class="btn-action" style="flex:1; font-size:11px;" onclick="editLimitPrompt('${code}', '${min}')">✏️ Edit</button>
-                            <button class="btn-action btn-delete" style="flex:1; font-size:11px;" onclick="hapusItemLimit('${code}')">🗑️ Hapus</button>
-                        </div>
-                    </div>`;
+            return `<tr style="${rowStyle} border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 10px; font-weight: bold;">${code}</td>
+                        <td style="padding: 10px;">${currentStockQty} Kg (${currentCount} Pcs)</td>
+                        <td style="padding: 10px;">${min} Kg</td>
+                        <td style="padding: 10px;">${statusBadge}</td>
+                        <td style="padding: 10px; text-align: center; white-space: nowrap;">
+                            <button class="btn-action" style="font-size:11px; padding: 4px 8px;" onclick="editLimitPrompt('${code}', '${min}')">✏️ Edit</button>
+                            <button class="btn-action btn-delete" style="font-size:11px; padding: 4px 8px;" onclick="hapusItemLimit('${code}')">🗑️ Hapus</button>
+                        </td>
+                    </tr>`;
         }).join('');
 
+        let paginationHTML = '';
         if (totalPages > 1) {
-            html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; grid-column: 1/-1;">
+            paginationHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
                         <button class="btn-action" onclick="changePageLimit(-1)">Prev</button>
                         <span style="font-size:11px; font-weight:600;">${pageLimit['MAIN']+1}/${totalPages}</span>
                         <button class="btn-action" onclick="changePageLimit(1)">Next</button>
                     </div>`;
         }
 
-        list.innerHTML = html;
+        list.innerHTML = `
+            <div style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); padding: 5px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #2563eb; color: white; text-align: left;">
+                            <th style="padding: 10px;">Kode Item</th>
+                            <th style="padding: 10px;">Stok Saat Ini</th>
+                            <th style="padding: 10px;">Min Limit</th>
+                            <th style="padding: 10px;">Status</th>
+                            <th style="padding: 10px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHTML}
+                    </tbody>
+                </table>
+            </div>
+            ${paginationHTML}
+        `;
     }
 
     function changePageLimit(dir) {
         let term = document.getElementById('cariLimit') ? document.getElementById('cariLimit').value.toLowerCase() : "";
-        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
-        let filteredCodes = allCodes.filter(c => c.toLowerCase().includes(term));
+        let filterCriticalOnly = document.getElementById('filterCriticalOnly') ? document.getElementById('filterCriticalOnly').checked : false;
+        
+        let keluarCounts = {};
+        riwayatKeluar.forEach(x => {
+            let c = (x.code || "").toUpperCase();
+            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
+        });
+
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
+        allCodes.sort((a, b) => {
+            let countA = keluarCounts[a.toUpperCase()] || 0;
+            let countB = keluarCounts[b.toUpperCase()] || 0;
+            if (countB !== countA) return countB - countA;
+            return a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
+        });
+
+        let filteredCodes = allCodes.filter(code => {
+            let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+            let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
+            let isCritical = (currentStockQty === 1 || currentCount === 1);
+            let matchesTerm = code.toLowerCase().includes(term);
+            if (!matchesTerm) return false;
+            if (filterCriticalOnly) return isCritical;
+            return true;
+        });
+
         let totalPages = Math.ceil(filteredCodes.length / itemsPerPage);
         pageLimit['MAIN'] = Math.max(0, Math.min((pageLimit['MAIN'] || 0) + dir, totalPages - 1));
         renderLimit();
@@ -1268,14 +1600,19 @@
         if (!opName) { gantiOperator(); return; }
 
         let code = document.getElementById('limitCode').value.trim().toUpperCase();
-        let min = parseInt(document.getElementById('limitMin').value) || 0;
+        let min = document.getElementById('limitMin').value !== '' ? parseInt(document.getElementById('limitMin').value) : '-';
 
         if (!code) {
             alert("⚠️ Harap masukkan Kode Item terlebih dahulu!");
             return;
         }
 
-        itemLimits[code] = { min, updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
+        itemLimits[code] = { 
+            min: min, 
+            updatedBy: opName, 
+            updatedAt: new Date().toLocaleDateString('id-ID') 
+        };
+
         db.ref('item_limits').set(itemLimits).then(() => {
             showToast("✅ Limit item berhasil disimpan!");
             document.getElementById('limitCode').value = '';
@@ -1310,7 +1647,7 @@
         });
 
         db.ref('item_limits').set(itemLimits).then(() => {
-            showToast("✅ Berhasil mengisi otomatis limit minimum berdasarkan Qty terkecil!");
+            showToast("✅ Berhasil mengisi otomatis min limit berdasarkan Qty terkecil!");
             renderLimit();
         });
     }
@@ -1328,14 +1665,14 @@
     }
 
     function editLimitPrompt(code, currentMin) {
-        let m = prompt(`Edit Min Limit untuk ${code}:`, currentMin === '-' ? '' : currentMin);
-        if (m === null) return;
+        let mMin = prompt(`Edit Min Limit untuk ${code}:`, currentMin === '-' ? '' : currentMin);
+        if (mMin === null) return;
 
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
 
         itemLimits[code] = {
-            min: parseInt(m) || 0,
+            min: mMin !== '' ? parseInt(mMin) : '-',
             updatedBy: opName,
             updatedAt: new Date().toLocaleDateString('id-ID')
         };
@@ -1345,15 +1682,217 @@
         });
     }
 
+    function setFilterKL(type) {
+        currentFilterKL = type;
+        document.querySelectorAll('#page-kurang-lebih .filter-btn').forEach(btn => btn.classList.remove('active'));
+        if(type === 'all') document.getElementById('btnKLAll').classList.add('active');
+        if(type === 'kurang') document.getElementById('btnKLCukup').classList.add('active');
+        if(type === 'lebih') document.getElementById('btnKLLebih').classList.add('active');
+        pageKurangLebih['MAIN'] = 0;
+        renderKurangLebih();
+    }
+
+    function tambahKurangLebih() {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        let code = document.getElementById('klCode').value.trim().toUpperCase();
+        let qty = document.getElementById('klQty').value;
+        let status = document.getElementById('klStatus').value;
+        let tgl = document.getElementById('klTgl').value;
+
+        if (!code || !qty || !tgl) {
+            alert("⚠️ Harap lengkapi Kode Item, Qty (Kg), dan Tanggal!");
+            return;
+        }
+
+        let uniqueId = 'kl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        dataKurangLebih.push({
+            id: uniqueId,
+            code: code,
+            qty: qty,
+            status: status,
+            tgl: tgl,
+            operator: opName
+        });
+
+        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
+            showToast("✅ Berhasil menambahkan item kurang/lebih!");
+            document.getElementById('klCode').value = '';
+            document.getElementById('klQty').value = '';
+            document.getElementById('klCode').focus();
+            renderKurangLebih();
+        });
+    }
+
+    function hapusKurangLebih(id) {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        if (!confirm("Yakin ingin menghapus item ini dari daftar?")) return;
+        dataKurangLebih = dataKurangLebih.filter(x => x.id !== id);
+        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
+            showToast("🗑️ Item berhasil dihapus.");
+            renderKurangLebih();
+        });
+    }
+
+    function editKurangLebih(id) {
+        let opName = localStorage.getItem('opName') || '';
+        if (!opName) { gantiOperator(); return; }
+
+        let item = dataKurangLebih.find(x => x.id === id);
+        if (!item) return;
+
+        let newCode = prompt("Edit Kode Item:", item.code);
+        if (newCode === null) return;
+        let newQty = prompt("Edit Qty (Kg):", item.qty);
+        if (newQty === null) return;
+        let newStatus = prompt("Edit Status (Ketik 'Kurang' atau 'Lebih'):", item.status);
+        if (newStatus === null) return;
+
+        item.code = newCode.trim().toUpperCase();
+        item.qty = newQty.trim();
+        item.status = newStatus.trim();
+        item.operator = opName;
+
+        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
+            showToast("✅ Data berhasil diperbarui!");
+            renderKurangLebih();
+        });
+    }
+
+    function renderKurangLebih() {
+        let list = document.getElementById('listKurangLebih');
+        if (!list) return;
+        list.innerHTML = '';
+
+        let term = document.getElementById('cariKurangLebih') ? document.getElementById('cariKurangLebih').value.toLowerCase() : "";
+        let filtered = dataKurangLebih.filter(item => {
+            let matchesTerm = (item.code || "").toLowerCase().includes(term) || (item.operator || "").toLowerCase().includes(term);
+            if (!matchesTerm) return false;
+
+            if (currentFilterKL === 'kurang' && item.status.toLowerCase() !== 'kurang') return false;
+            if (currentFilterKL === 'lebih' && item.status.toLowerCase() !== 'lebih') return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-style:italic;">Belum ada data input stok kurang / lebih.</div>';
+            return;
+        }
+
+        filtered.sort((a, b) => new Date(b.tgl) - new Date(a.tgl));
+
+        if (pageKurangLebih['MAIN'] === undefined) pageKurangLebih['MAIN'] = 0;
+        let totalPages = Math.ceil(filtered.length / itemsPerPage);
+        let start = pageKurangLebih['MAIN'] * itemsPerPage;
+        let displayItems = filtered.slice(start, start + itemsPerPage);
+
+        let rowsHTML = displayItems.map(item => {
+            let badge = "";
+            let rowStyle = "";
+            if (item.status.toLowerCase() === 'kurang') {
+                badge = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fecaca;">⚠️ Kurang</span>`;
+                rowStyle = "background: #fff5f5;";
+            } else {
+                badge = `<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #fcd34d;">📦 Lebih (Surplus)</span>`;
+                rowStyle = "background: #fefce8;";
+            }
+
+            return `<tr style="${rowStyle} border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 10px; font-weight: bold;">${item.code}</td>
+                        <td style="padding: 10px;">${item.qty} Kg</td>
+                        <td style="padding: 10px;">${badge}</td>
+                        <td style="padding: 10px;"><small>${item.tgl} <br>by ${item.operator || '-'}</small></td>
+                        <td style="padding: 10px; text-align: center; white-space: nowrap;">
+                            <button class="btn-action" style="font-size:11px; padding: 4px 8px;" onclick="editKurangLebih('${item.id}')">✏️ Edit</button>
+                            <button class="btn-action btn-delete" style="font-size:11px; padding: 4px 8px;" onclick="hapusKurangLebih('${item.id}')">🗑️ Hapus</button>
+                        </td>
+                    </tr>`;
+        }).join('');
+
+        let paginationHTML = '';
+        if (totalPages > 1) {
+            paginationHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+                        <button class="btn-action" onclick="changePageKurangLebih(-1)">Prev</button>
+                        <span style="font-size:11px; font-weight:600;">${pageKurangLebih['MAIN']+1}/${totalPages}</span>
+                        <button class="btn-action" onclick="changePageKurangLebih(1)">Next</button>
+                    </div>`;
+        }
+
+        list.innerHTML = `
+            <div style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow); padding: 5px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #2563eb; color: white; text-align: left;">
+                            <th style="padding: 10px;">Kode Item</th>
+                            <th style="padding: 10px;">Qty (Kg)</th>
+                            <th style="padding: 10px;">Status</th>
+                            <th style="padding: 10px;">Tanggal / Operator</th>
+                            <th style="padding: 10px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHTML}
+                    </tbody>
+                </table>
+            </div>
+            ${paginationHTML}
+        `;
+    }
+
+    function changePageKurangLebih(dir) {
+        let term = document.getElementById('cariKurangLebih') ? document.getElementById('cariKurangLebih').value.toLowerCase() : "";
+        let filtered = dataKurangLebih.filter(item => {
+            let matchesTerm = (item.code || "").toLowerCase().includes(term) || (item.operator || "").toLowerCase().includes(term);
+            if (!matchesTerm) return false;
+            if (currentFilterKL === 'kurang' && item.status.toLowerCase() !== 'kurang') return false;
+            if (currentFilterKL === 'lebih' && item.status.toLowerCase() !== 'lebih') return false;
+            return true;
+        });
+        let totalPages = Math.ceil(filtered.length / itemsPerPage);
+        pageKurangLebih['MAIN'] = Math.max(0, Math.min((pageKurangLebih['MAIN'] || 0) + dir, totalPages - 1));
+        renderKurangLebih();
+    }
+
+    function exportKurangLebihCSV() {
+        let csv = "Kode Item,Qty (Kg),Status,Tanggal,Operator\n";
+        dataKurangLebih.forEach(item => {
+            csv += `${item.code},${item.qty},${item.status},${item.tgl},${item.operator || '-'}\n`;
+        });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+        a.download = 'Stok_Kurang_Dan_Lebih.csv';
+        a.click();
+    }
+
     function exportLimitCSV() {
         let csv = "Kode Item,Stok Saat Ini (Kg),Min Limit,Status\n";
-        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])].sort();
+        
+        let keluarCounts = {};
+        riwayatKeluar.forEach(x => {
+            let c = (x.code || "").toUpperCase();
+            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
+        });
+
+        let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
+        allCodes.sort((a, b) => {
+            let countA = keluarCounts[a.toUpperCase()] || 0;
+            let countB = keluarCounts[b.toUpperCase()] || 0;
+            if (countB !== countA) return countB - countA;
+            return a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
+        });
+
         allCodes.forEach(code => {
             let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+            let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
             let limitData = itemLimits[code] || { min: '-' };
             let status = "Belum Diset";
-            if (limitData.min !== '-') {
-                if (currentStockQty < Number(limitData.min)) status = "Di Bawah Minimum";
+            if (currentStockQty === 1 || currentCount === 1) {
+                status = "Critical (Sisa 1)";
+            } else if (limitData.min !== '-') {
+                if (currentStockQty < Number(limitData.min)) status = "Kurang";
                 else status = "Aman";
             }
             csv += `${code},${currentStockQty},${limitData.min},${status}\n`;
@@ -1406,37 +1945,24 @@
             } else {
                 html += displayItems.map(x => {
                     let actualIndex = riwayatPencarian.indexOf(x);
-                    let keyword = (x.kataKunci || "").toLowerCase();
                     
-                    let activeItems = data.filter(item => (item.code || "").toLowerCase() === keyword);
-                    let matchingKeluar = riwayatKeluar.filter(k => (k.code || "").toLowerCase() === keyword);
-
-                    let statusDetails = "";
-
-                    if (activeItems.length > 0) {
-                        statusDetails += `<div style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin-top:4px; border:1px solid #bbf7d0;">🟢 Ada ${activeItems.length} Stok di Gudang</div>`;
-                    }
-
-                    if (matchingKeluar.length > 0) {
-                        statusDetails += `<div style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:block; margin-top:4px; border:1px solid #fecaca; text-align:center;">🔴 Ada ${matchingKeluar.length} Item yang Sudah Dihapus/Keluar:</div>`;
-                        matchingKeluar.forEach(k => {
-                            statusDetails += `<div style="font-size:11px; color:#475569; background:#fff; padding:3px 6px; border-radius:4px; margin-top:2px; border:1px solid #e2e8f0;">
-                                📅 Tgl Masuk: <b>${k.tglMasuk}</b><br>
-                                📤 Tgl Dihapus: <b>${k.tglKeluar}</b>
-                            </div>`;
-                        });
-                    }
-
-                    if (activeItems.length === 0 && matchingKeluar.length === 0) {
-                        statusDetails = `<div style="background:#f1f5f9; color:#64748b; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin-top:4px;">⚪ Tidak Ada Data</div>`;
-                    }
+                    let konfirmasiBadge = x.konfirmasi === "Ya" 
+                        ? `<span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">Konfirmasi: Ya</span>` 
+                        : (x.konfirmasi === "Tidak" 
+                            ? `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">Konfirmasi: Tidak</span>`
+                            : `<span style="background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">-</span>`);
+                    
+                    let tglHapusInfo = (x.konfirmasi === "Ya" && x.tglHapus) 
+                        ? `<br><small style="color:#166534;">📅 Tgl Dihapus: <b>${x.tglHapus}</b></small>` 
+                        : ""; 
 
                     let deleteBtnHTML = (currentOp === 'Tri') ? `<button class="btn-action btn-delete" style="margin-top:6px; width:100%;" onclick="hapusRiwayatPencarian(${actualIndex})">🗑️ Hapus Catatan</button>` : '';
                     
                     return `<div class="item-card" style="margin-bottom:8px;">
-                                Mencari: <b>${x.kataKunci}</b>
-                                ${statusDetails}
-                                <small style="display:block; margin-top:4px; color:#94a3b8;">Cari Tgl: ${x.tgl} | Jam: ${x.jam}</small>
+                                Item: <b>${x.kataKunci}</b><br>
+                                ${konfirmasiBadge}
+                                ${tglHapusInfo}
+                                <small style="display:block; margin-top:4px; color:#94a3b8;">🕒 Terakhir Cari: ${x.tgl} | ${x.jam}</small>
                                 ${deleteBtnHTML}
                             </div>`;
                 }).join('');

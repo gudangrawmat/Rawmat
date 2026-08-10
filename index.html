@@ -562,6 +562,7 @@
         }
     }
 
+    // Perubahan di sini: Tombol Ya dicatat di riwayat pencarian tanpa memotong stok gudang secara otomatis
     function confirmSearchNotification(id, code, isUsed) {
         let opName = localStorage.getItem('opName') || 'Tanpa Operator';
         if (!opName || opName === 'Tanpa Operator') {
@@ -574,7 +575,6 @@
         let tglStr = now.toLocaleDateString('id-ID');
         let jamStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-        // Update atau Tambah entri riwayat pencarian per item per operator
         let existingIndex = riwayatPencarian.findIndex(x => 
             (x.kataKunci || "").toUpperCase() === code.toUpperCase() && 
             (x.operator || "").toUpperCase() === opName.toUpperCase()
@@ -594,49 +594,11 @@
         } else {
             riwayatPencarian.push(searchData);
         }
+        
         db.ref('riwayat_pencarian').set(riwayatPencarian);
 
         if (isUsed) {
-            let matchingItems = data.filter(item => (item.code || "").toUpperCase() === code);
-            matchingItems.sort((a, b) => new Date(a.tgl) - new Date(b.tgl)); 
-            
-            if (matchingItems.length > 0) {
-                let itemToUse = matchingItems[0];
-                let index = data.findIndex(x => x.id === itemToUse.id);
-                
-                if (index > -1) {
-                    let backupData = [...data];
-                    let backupRiwayatKeluar = [...riwayatKeluar];
-
-                    riwayatKeluar.push({
-                        code: itemToUse.code, 
-                        qty: itemToUse.qty, 
-                        tglMasuk: itemToUse.tgl, 
-                        pallet: itemToUse.pallet || '-', 
-                        operator: opName, 
-                        tglKeluar: now.toISOString().split('T')[0], 
-                        jam: jamStr
-                    }); 
-                    
-                    data.splice(index, 1); 
-
-                    Promise.all([
-                        db.ref('gudang_final').set(data),
-                        db.ref('riwayat_keluar').set(riwayatKeluar)
-                    ])
-                    .then(() => { 
-                        refreshAll();
-                        showToast(`✅ Item ${code} berhasil dicatat jadi dipakai (keluar).`);
-                    })
-                    .catch((error) => {
-                        console.error("Gagal mencatat pemakaian item: ", error);
-                        data = backupData;
-                        riwayatKeluar = backupRiwayatKeluar;
-                        refreshAll();
-                        alert("❌ Gagal menyinkronkan data pemakaian ke server pusat.");
-                    });
-                }
-            }
+            showToast(`✅ Item ${code} dicatat dipakai (Stok gudang tidak terpotong otomatis).`);
         } else {
             showToast(`ℹ️ Item ${code} dikonfirmasi tidak dipakai.`);
         }

@@ -960,13 +960,15 @@
             
             let filtered = items.filter(x => x.code.toLowerCase().includes(term));
             
+            // UPDATED SORTING: 1st by code (ascending), 2nd by date (FIFO / oldest first if code is identical)
             filtered.sort((a, b) => {
+                let codeComparison = (a.code || "").localeCompare(b.code || "", undefined, { numeric: true, sensitivity: 'base' });
+                if (codeComparison !== 0) {
+                    return codeComparison;
+                }
                 let dateA = new Date(a.tgl);
                 let dateB = new Date(b.tgl);
-                if (dateA - dateB !== 0) {
-                    return dateA - dateB; 
-                }
-                return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+                return dateA - dateB;
             });
             
             if (items.length > 0 && filtered.length === 0) return;

@@ -562,7 +562,6 @@
         }
     }
 
-    // Perubahan di sini: Tombol Ya dicatat di riwayat pencarian tanpa memotong stok gudang secara otomatis
     function confirmSearchNotification(id, code, isUsed) {
         let opName = localStorage.getItem('opName') || 'Tanpa Operator';
         if (!opName || opName === 'Tanpa Operator') {
@@ -598,7 +597,7 @@
         db.ref('riwayat_pencarian').set(riwayatPencarian);
 
         if (isUsed) {
-            showToast(`✅ Item ${code} dicatat dipakai (Stok gudang tidak terpotong otomatis).`);
+            showToast(`✅ Item ${code} dicatat dipakai (Stok gudang aman, tidak terpotong).`);
         } else {
             showToast(`ℹ️ Item ${code} dikonfirmasi tidak dipakai.`);
         }

@@ -9,30 +9,32 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Tesseract.js untuk OCR / Pemindai Teks Foto -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    
     <style>
-        /* Default Theme: Modern SaaS (Untuk Gigin, Dede, atau Default) */
         :root { 
             --primary: #4f46e5; 
             --primary-glow: rgba(79, 70, 229, 0.25);
-            --bg-gradient: radial-gradient(circle at 10% 20%, rgb(238, 242, 255) 0%, rgb(241, 245, 249) 90%);
-            --text: #0f172a;
+            /* Tema Putih Transparan Lembut untuk Gigin & Dede (Tidak Silau) */
+            --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            --text: #1e293b;
             --text-muted: #64748b;
             --card-glass: rgba(255, 255, 255, 0.75); 
-            --border-color: rgba(226, 232, 240, 0.8);
-            --shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 10px 20px -10px rgba(0, 0, 0, 0.03);
-            --radius: 20px;
+            --border-color: rgba(203, 213, 225, 0.8);
+            --shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.05);
+            --radius: 16px;
             --font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Cyberpunk Theme khusus untuk User Tri */
         body.cyberpunk-mode {
             --primary: #00f0ff;
             --primary-glow: rgba(0, 240, 255, 0.35);
             --bg-gradient: #030712;
             --text: #ffffff;
             --text-muted: #cbd5e1;
-            --card-glass: rgba(10, 15, 30, 0.92);
-            --border-color: rgba(0, 240, 255, 0.45);
+            --card-glass: rgba(10, 15, 30, 0.40);
+            --border-color: rgba(0, 240, 255, 0.35);
             --shadow: 0 0 25px rgba(0, 240, 255, 0.25);
             --radius: 8px;
             --font-family: 'Rajdhani', sans-serif;
@@ -80,10 +82,18 @@
             transition: background 0.4s ease, color 0.4s ease; 
         }
 
+        #fireworksCanvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 0; display: none;
+        }
+
+        .wrap { position: relative; z-index: 1; max-width: 1240px; margin: auto; }
+
         .controls, .summary-box, .nav-bar, .pallet-card { 
             background: var(--card-glass) !important; 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
             border: 1px solid var(--border-color) !important; 
         }
 
@@ -106,26 +116,14 @@
         @keyframes fadeout { from {top: 30px; opacity: 1;} to {top: 0; opacity: 0;} }
 
         .search-popup-container {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            width: 340px;
-            max-height: 80vh;
-            overflow-y: auto;
+            position: fixed; top: 24px; right: 24px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 12px; width: 340px; max-height: 80vh; overflow-y: auto;
         }
 
         .search-popup-card {
-            background: var(--card-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border-color);
-            border-left: 5px solid var(--primary);
-            padding: 18px 20px;
-            border-radius: var(--radius);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            background: var(--card-glass); backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color); border-left: 5px solid var(--primary);
+            padding: 18px 20px; border-radius: var(--radius); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -133,34 +131,20 @@
         .online { color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
         .offline { color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 
-        .wrap { max-width: 1240px; margin: auto; } 
-
         .header-box { 
-            background: linear-gradient(135deg, #4f46e5, #3730a3); 
-            color: white; 
-            padding: 30px; 
-            border-radius: var(--radius); 
-            text-align: center; 
-            font-weight: 700; 
-            margin-bottom: 24px; 
-            font-size: 1.75rem; 
-            letter-spacing: -0.02em;
-            box-shadow: 0 20px 40px -15px rgba(79, 70, 229, 0.4); 
-            position: relative; 
-            overflow: hidden; 
+            background: rgba(79, 70, 229, 0.85); backdrop-filter: blur(12px);
+            color: white; padding: 30px; border-radius: var(--radius); text-align: center; font-weight: 700; margin-bottom: 24px; font-size: 1.75rem; letter-spacing: -0.02em;
+            box-shadow: 0 20px 40px -15px rgba(79, 70, 229, 0.4); position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.3);
         }
         body.cyberpunk-mode .header-box {
-            background: linear-gradient(135deg, #0f172a, #1e1b4b);
-            color: #00f0ff;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow);
-            font-family: 'Share Tech Mono', monospace;
-            letter-spacing: 2px;
+            background: rgba(15, 23, 42, 0.65); color: #00f0ff; border: 1px solid var(--border-color);
+            box-shadow: var(--shadow); font-family: 'Share Tech Mono', monospace; letter-spacing: 2px;
         }
 
         .nav-bar { display: flex; gap: 8px; margin-bottom: 24px; padding: 8px; border-radius: var(--radius); box-shadow: var(--shadow); }
         .nav-btn { flex: 1; padding: 13px; background: transparent; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; color: var(--text-muted); }
-        .nav-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+        .nav-btn:hover { color: var(--text); background: rgba(0, 0, 0, 0.05); }
+        body.cyberpunk-mode .nav-btn:hover { background: rgba(255, 255, 255, 0.1); }
         .nav-btn.active { background: var(--primary); color: white; box-shadow: 0 8px 20px var(--primary-glow); }
         .page { display: none; } .page.active { display: block; }
         .controls { padding: 26px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 24px; }
@@ -172,63 +156,50 @@
         
         input, select, button { padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 12px; width: 100%; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px; background: var(--card-glass); color: var(--text); backdrop-filter: blur(12px); transition: all 0.2s ease; }
         input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow); color: var(--text); }
-        input::placeholder { color: var(--text-muted); opacity: 0.7; }
-        select option { background: var(--card-glass); color: var(--text); }
+        input::placeholder { color: var(--text-muted); opacity: 0.8; }
+        select option { background: #ffffff; color: #1e293b; }
+        body.cyberpunk-mode select option { background: #1e293b; color: #fff; }
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; box-shadow: 0 6px 16px var(--primary-glow); }
         button:hover { opacity: 0.92; transform: translateY(-1px); }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); z-index: 99999; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
-        .modal-content { background: var(--card-glass); backdrop-filter: blur(25px); border: 1px solid var(--border-color); color: var(--text); padding: 32px; border-radius: var(--radius); width: 90%; max-width: 420px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.4); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 99999; justify-content: center; align-items: center; backdrop-filter: blur(6px); }
+        .modal-content { background: var(--card-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-color); color: var(--text); padding: 32px; border-radius: var(--radius); width: 90%; max-width: 480px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.2); max-height: 90vh; overflow-y: auto; }
         
         .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .pallet-card { padding: 20px; border-radius: var(--radius); border-left: 6px solid var(--primary); box-shadow: var(--shadow); }
         .ibc-wide { grid-column: 1 / -1; border-left-color: #8b5cf6; } 
         .pallet-title { font-weight: 700; font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
         .btn-action { background: var(--card-glass); border: 1px solid var(--border-color); padding: 7px 12px; border-radius: 10px; cursor: pointer; font-size: 12px; margin-left: 4px; color: var(--text-muted); transition: all 0.2s; }
-        .btn-action:hover { color: var(--primary); border-color: var(--primary); background: rgba(79, 70, 229, 0.08); }
-        .btn-delete { background: rgba(239, 68, 68, 0.08); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
-        .btn-delete:hover { background: rgba(239, 68, 68, 0.15); color: #dc2626; border-color: rgba(239, 68, 68, 0.4); }
+        .btn-action:hover { color: var(--primary); border-color: var(--primary); background: rgba(79, 70, 229, 0.15); }
+        .btn-delete { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+        .btn-delete:hover { background: rgba(239, 68, 68, 0.25); color: #dc2626; border-color: rgba(239, 68, 68, 0.5); }
         
         .item-card { font-size: 13px; padding: 14px; border: 1px solid var(--border-color); background: var(--card-glass); border-radius: 12px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s; color: var(--text); }
-        .item-card:hover { border-color: rgba(79, 70, 229, 0.3); }
+        .item-card:hover { border-color: rgba(79, 70, 229, 0.4); }
         .item-card.warning-stok { border: 1px solid #fca5a5; animation: warningPulse 2s infinite; }
         .item-card.critical-stok { border: 1px solid #facc15; animation: yellowPulse 2s infinite; }
         
         .summary-box { padding: 24px; border-radius: var(--radius); margin-top: 24px; box-shadow: var(--shadow); }
         
-        .fifo-badge { background: rgba(254, 243, 199, 0.9); color: #92400e; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fcd34d; animation: cyanGlow 2s infinite; }
-        .warning-badge { background: rgba(254, 226, 226, 0.9); color: #b91c1c; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5; }
-        .critical-badge { background: rgba(254, 249, 195, 0.9); color: #854d0e; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde047; }
+        .fifo-badge { background: rgba(254, 243, 199, 0.85); color: #92400e; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fcd34d; animation: cyanGlow 2s infinite; }
+        .warning-badge { background: rgba(254, 226, 226, 0.85); color: #b91c1c; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5; }
+        .critical-badge { background: rgba(254, 249, 195, 0.85); color: #854d0e; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde047; }
         
         #loginOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(9, 13, 22, 0.85);
-            z-index: 99999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(16px);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.5); z-index: 99999;
+            display: flex; justify-content: center; align-items: center; backdrop-filter: blur(10px);
         }
         .login-box {
-            background: var(--card-glass);
-            backdrop-filter: blur(30px);
-            border: 1px solid var(--border-color);
-            color: var(--text);
-            padding: 45px 38px;
-            border-radius: 24px;
-            width: 90%;
-            max-width: 420px;
-            text-align: center;
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5);
-            animation: zoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            background: var(--card-glass); backdrop-filter: blur(25px); border: 1px solid var(--border-color);
+            color: var(--text); padding: 45px 38px; border-radius: 24px; width: 90%; max-width: 420px; text-align: center;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.2); animation: zoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
     </style>
 </head>
 <body id="appBody">
+
+<canvas id="fireworksCanvas"></canvas>
 
 <div id="loginOverlay">
     <div class="login-box">
@@ -256,6 +227,35 @@
 <div id="statusIndicator" class="status-indicator online">● Online</div>
 
 <div id="searchConfirmContainer" class="search-popup-container"></div>
+
+<!-- Modal AI Scan Kamera & Auto Check (Khusus Tri) -->
+<div id="aiScanModal" class="modal">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--primary);">📸 AI Scan & Check (Khusus Tri)</h3>
+            <span onclick="closeAiScanModal()" style="cursor: pointer; font-size: 18px; font-weight: bold;">✕</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Pilih rak, arahkan kamera, lalu klik <b>Ambil Foto & Pindai</b>. Item yang terdeteksi otomatis tertandai centang (✅) beserta tanggal pengecekannya.</p>
+        
+        <label style="font-size: 12px; font-weight: 600;">Pilih Rak:</label>
+        <select id="scanRackSelect" style="margin-bottom: 12px;"></select>
+
+        <div style="position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; aspect-ratio: 4/3;">
+            <video id="cameraVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <canvas id="cameraCanvas" style="display: none;"></canvas>
+        </div>
+
+        <button onclick="captureAndScan()" style="background: #10b981; width: 100%; margin-bottom: 12px;">📸 Ambil Foto & Pindai</button>
+
+        <div id="aiScanProgress" style="display:none; text-align:center; margin-bottom: 12px; font-weight: 600; color: var(--primary);">
+            ⏳ Memindai teks & memperbarui status check... <span id="scanPercent">0%</span>
+        </div>
+
+        <div id="aiScanResultContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;"></div>
+
+        <button onclick="closeAiScanModal()" style="background:#64748b; width:100%; margin-bottom:0;">Tutup</button>
+    </div>
+</div>
 
 <div id="rackModal" class="modal">
     <div class="modal-content">
@@ -327,7 +327,11 @@
         <div class="controls">
             <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-glass); border: 1px solid var(--border-color); padding: 12px 18px; border-radius: 14px; margin-bottom: 18px;">
                 <span style="font-weight: 600; color: var(--primary); font-size: 13px;">👤 Operator Aktif: <b id="displayOpName">-</b></span>
-                <button onclick="gantiOperator()" style="width: auto; padding: 6px 14px; font-size: 11px; background: #ef4444; margin-bottom: 0; box-shadow: none;">Ganti Operator</button>
+                <div style="display: flex; gap: 8px;">
+                    <!-- Tombol AI Scan & Check KHUSUS USER TRI -->
+                    <button id="btnAiScanTri" onclick="openAiScanModal()" style="display:none; width: auto; padding: 6px 14px; font-size: 11px; background: #8b5cf6; margin-bottom: 0; box-shadow: none;">📸 AI Scan & Check</button>
+                    <button onclick="gantiOperator()" style="width: auto; padding: 6px 14px; font-size: 11px; background: #ef4444; margin-bottom: 0; box-shadow: none;">Ganti Operator</button>
+                </div>
             </div>
 
             <div class="filter-group" id="filterNav"></div>
@@ -375,7 +379,7 @@
             </div>
             <div style="display:flex; gap:10px; margin-bottom:14px;">
                 <button onclick="saveItemLimit()" style="flex:1; margin-bottom:0;">Simpan Limit Item</button>
-                <button onclick="autoSetLimitDariQtyTerkecil()" style="background:#10b981; flex:1; margin-bottom:0;" title="Otomatis set limit berdasarkan Qty terkecil">⚡ Auto-Set dari Qty Terkecil</button>
+                <button onclick="autoSetLimitDariQtyTerkecil()" style="background:#10b981; flex:1; margin-bottom:0;">⚡ Auto-Set dari Qty Terkecil</button>
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px;">
@@ -458,15 +462,131 @@
 </div>
 
 <script>
-    const APP_VERSION = "1.0.45"; 
+    const APP_VERSION = "1.0.56"; 
+
+    const canvas = document.getElementById('fireworksCanvas');
+    const ctx = canvas.getContext('2d');
+    let fireworksActive = false;
+    let particles = [];
+    let fireworks = [];
+    let cameraStream = null;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Firework {
+        constructor(x, y, targetX, targetY) {
+            this.x = x; this.y = y;
+            this.targetX = targetX; this.targetY = targetY;
+            this.coordinates = [];
+            this.coordinateCount = 3;
+            while(this.coordinateCount--) { this.coordinates.push([this.x, this.y]); }
+            this.angle = Math.atan2(targetY - y, targetX - x);
+            this.speed = 2;
+            this.acceleration = 1.05;
+            this.brightness = Math.random() * 50 + 50;
+        }
+        update(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            this.speed *= this.acceleration;
+            let vx = Math.cos(this.angle) * this.speed;
+            let vy = Math.sin(this.angle) * this.speed;
+            if(Math.hypot(this.targetX - this.x, this.targetY - this.y) < this.speed) {
+                createParticles(this.targetX, this.targetY);
+                fireworks.splice(index, 1);
+            } else {
+                this.x += vx; this.y += vy;
+            }
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = 'hsl(' + (Math.random()*360) + ', 100%, ' + this.brightness + '%)';
+            ctx.stroke();
+        }
+    }
+
+    class Particle {
+        constructor(x, y) {
+            this.x = x; this.y = y;
+            this.coordinates = [];
+            this.coordinateCount = 5;
+            while(this.coordinateCount--) { this.coordinates.push([this.x, this.y]); }
+            this.angle = Math.random() * Math.PI * 2;
+            this.speed = Math.random() * 6 + 1;
+            this.friction = 0.95;
+            this.gravity = 1;
+            this.hue = Math.random() * 360;
+            this.brightness = Math.random() * 50 + 50;
+            this.alpha = 1;
+            this.decay = Math.random() * 0.015 + 0.015;
+        }
+        update(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            this.speed *= this.friction;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed + this.gravity;
+            this.alpha -= this.decay;
+            if(this.alpha <= this.decay) { particles.splice(index, 1); }
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
+            ctx.stroke();
+        }
+    }
+
+    function createParticles(x, y) {
+        let count = 30;
+        while(count--) { particles.push(new Particle(x, y)); }
+    }
+
+    function loop() {
+        if (!fireworksActive) return;
+        requestAnimationFrame(loop);
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(3, 7, 18, 0.4)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'lighter';
+        
+        let i = fireworks.length;
+        while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
+        let j = particles.length;
+        while(j--) { particles[j].draw(); particles[j].update(j); }
+
+        if(Math.random() < 0.04) {
+            fireworks.push(new Firework(canvas.width / 2, canvas.height, Math.random() * canvas.width, Math.random() * canvas.height / 2));
+        }
+    }
+
+    function toggleFireworks(active) {
+        fireworksActive = active;
+        canvas.style.display = active ? 'block' : 'none';
+        if(active) { particles = []; fireworks = []; loop(); }
+    }
 
     function applyThemeByOperator(opName) {
         let body = document.getElementById('appBody');
+        let btnAiScanTri = document.getElementById('btnAiScanTri');
+
         if (opName === 'Tri') {
             body.classList.add('cyberpunk-mode');
+            if(btnAiScanTri) btnAiScanTri.style.display = 'inline-block';
         } else {
+            // Untuk Gigin dan Dede menggunakan tema putih transparan lembut (tidak silau)
             body.classList.remove('cyberpunk-mode');
+            if(btnAiScanTri) btnAiScanTri.style.display = 'none';
         }
+        if (opName) { toggleFireworks(true); } else { toggleFireworks(false); }
     }
 
     const firebaseConfig = { apiKey: "AIzaSyA9bEF4ylQ5zgl-7qnTD4zzeLUO1_pPnb0", databaseURL: "https://gudangrawmat-76d53-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "gudangrawmat-76d53" };
@@ -505,11 +625,7 @@
         }
     }
 
-    function handleLoginKey(e) {
-        if (e.key === 'Enter') {
-            prosesLogin();
-        }
-    }
+    function handleLoginKey(e) { if (e.key === 'Enter') prosesLogin(); }
 
     let idleTimeLimit = 60 * 60 * 1000; 
     let idleTimer;
@@ -556,6 +672,147 @@
             });
         }
     });
+
+    // 📸 FITUR KAMERA LIVE & AI SCAN DENGAN AUTO CHECK & UPDATE TANGGAL
+    function openAiScanModal() {
+        let currentOp = localStorage.getItem('opName');
+        if (currentOp !== 'Tri') {
+            alert("❌ Akses ditolak! Fitur ini khusus untuk user Tri.");
+            return;
+        }
+
+        let select = document.getElementById('scanRackSelect');
+        select.innerHTML = '';
+        palletList.sort(sortByName);
+        palletList.forEach(p => {
+            select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+        });
+
+        document.getElementById('aiScanResultContainer').innerHTML = '';
+        document.getElementById('aiScanModal').style.display = 'flex';
+        startCamera();
+    }
+
+    function startCamera() {
+        const video = document.getElementById('cameraVideo');
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                cameraStream = stream;
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Gagal mengakses kamera: ", err);
+                alert("⚠️ Tidak dapat mengakses kamera perangkat. Pastikan izin kamera diaktifkan.");
+            });
+    }
+
+    function closeAiScanModal() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        document.getElementById('aiScanModal').style.display = 'none';
+    }
+
+    function captureAndScan() {
+        let currentOp = localStorage.getItem('opName');
+        if (currentOp !== 'Tri') return;
+
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        if (!video.srcObject) {
+            alert("Kamera belum aktif!");
+            return;
+        }
+
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        let imageUrl = canvas.toDataURL('image/jpeg');
+        let selectedRack = document.getElementById('scanRackSelect').value;
+        let progressDiv = document.getElementById('aiScanProgress');
+        let percentSpan = document.getElementById('scanPercent');
+        let resultContainer = document.getElementById('aiScanResultContainer');
+
+        progressDiv.style.display = 'block';
+        resultContainer.innerHTML = '';
+
+        Tesseract.recognize(
+            imageUrl,
+            'eng',
+            { 
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        let pct = Math.round(m.progress * 100);
+                        percentSpan.innerText = pct + '%';
+                    }
+                }
+            }
+        ).then(({ data: { text } }) => {
+            progressDiv.style.display = 'none';
+            
+            let normalizedText = text.toUpperCase()
+                .replace(/[Iil|]/g, '1')  
+                .replace(/[Oo]/g, '0')    
+                .replace(/[Zz]/g, '2')    
+                .replace(/[Ss]/g, '5');   
+
+            let rackItems = data.filter(x => x.pallet === selectedRack);
+            let html = `<div style="font-weight: 700; margin-bottom: 8px; color: var(--primary);">Hasil Pemindaian Rak ${selectedRack}:</div>`;
+            
+            if (rackItems.length === 0) {
+                html += `<div style="color: var(--text-muted); font-size: 13px;">Tidak ada item tercatat di sistem pada rak ${selectedRack}.</div>`;
+            } else {
+                let matchCount = 0;
+                let todayStr = new Date().toLocaleDateString('id-ID');
+
+                rackItems.forEach(item => {
+                    let code = (item.code || "").toUpperCase();
+                    
+                    let regex = new RegExp(code + "\\s*[xX*]\\s*(\\d+)", "i");
+                    let match = normalizedText.match(regex);
+                    
+                    let isFoundInPhoto = normalizedText.includes(code);
+                    let foundQty = 0;
+
+                    if (match) {
+                        foundQty = parseInt(match[1]); 
+                        isFoundInPhoto = true;
+                    }
+
+                    if (isFoundInPhoto) {
+                        matchCount++;
+                        // 🔥 OTOMATIS UPDATE TANGGAL CHECK TERBARU KE DATABASE ITEM
+                        item.lastChecked = todayStr;
+                    }
+
+                    let qtyInfo = foundQty > 0 ? ` (Qty Terdeteksi: ${foundQty})` : "";
+                    let checkInfo = isFoundInPhoto ? ` | ✅ Check: ${todayStr}` : "";
+                    
+                    let badge = isFoundInPhoto 
+                        ? `<span style="background:rgba(16, 185, 129, 0.25); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">✅ Terdeteksi${qtyInfo}${checkInfo}</span>` 
+                        : `<span style="background:rgba(239, 68, 68, 0.25); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">⚠️ Fisik Tidak Terbaca/Keluar</span>`;
+
+                    html += `<div class="item-card" style="margin-bottom: 6px; padding: 10px;">
+                                <b>${item.code}</b> (${item.qty} Kg)<br>
+                                ${badge}
+                             </div>`;
+                });
+
+                // Sinkronkan pembaruan tanggal check ke Firebase
+                db.ref('gudang_final').set(data);
+
+                html += `<div style="margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--text);">Ringkasan: ${matchCount} dari ${rackItems.length} item terverifikasi & tanggal check diperbarui.</div>`;
+            }
+
+            resultContainer.innerHTML = html;
+        }).catch(err => {
+            progressDiv.style.display = 'none';
+            alert("Gagal membaca gambar dari kamera: " + err.message);
+        });
+    }
 
     function handleAutoSearch() {
         debounceRender();
@@ -666,14 +923,8 @@
         let selectedOp = document.getElementById('selectLoginOperator').value;
         let inputPass = document.getElementById('inputLoginPassword').value;
 
-        if (!selectedOp) {
-            alert("⚠️ Silakan pilih nama operator terlebih dahulu!");
-            return;
-        }
-        if (!inputPass) {
-            alert("⚠️ Masukkan password terlebih dahulu!");
-            return;
-        }
+        if (!selectedOp) { alert("⚠️ Silakan pilih nama operator terlebih dahulu!"); return; }
+        if (!inputPass) { alert("⚠️ Masukkan password terlebih dahulu!"); return; }
 
         if (operatorPasswords[selectedOp] && operatorPasswords[selectedOp] === inputPass) {
             localStorage.setItem('opName', selectedOp);
@@ -684,7 +935,6 @@
             document.getElementById('togglePasswordBtn').innerText = '👁️';
             
             applyThemeByOperator(selectedOp);
-
             showToast("👋 Selamat datang, " + selectedOp + "!");
             resetIdleTimer();
         } else {
@@ -701,7 +951,7 @@
         document.getElementById('inputLoginPassword').value = "";
         document.getElementById('inputLoginPassword').type = 'password';
         document.getElementById('togglePasswordBtn').innerText = '👁️';
-        document.getElementById('appBody').classList.remove('cyberpunk-mode');
+        applyThemeByOperator('');
         document.getElementById('loginOverlay').style.display = 'flex';
     }
 
@@ -774,18 +1024,19 @@
     }
 
     function updateCategoryOptions() {
-        let s=document.getElementById('inputCategory');
-        let cats=[...new Set(palletList.map(p=>p.category).filter(c=>c&&c.trim()))].sort();
-        s.innerHTML='<option value="">-- Pilih Kategori --</option>';
-        cats.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`);
+        let s = document.getElementById('inputCategory');
+        let cats = [...new Set(palletList.map(p => p.category).filter(c => c && c.trim()))].sort();
+        s.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+        cats.forEach(c => s.innerHTML += `<option value="${c}">${c}</option>`);
     }
-    function tambahKategoriBaru(){
-        let n=prompt('Nama kategori baru:');
-        if(!n)return;
-        n=n.trim();
-        let s=document.getElementById('inputCategory');
-        if(![...s.options].some(o=>o.value===n)){s.innerHTML+=`<option value="${n}">${n}</option>`;}
-        s.value=n;
+
+    function tambahKategoriBaru() {
+        let n = prompt('Nama kategori baru:');
+        if(!n) return;
+        n = n.trim();
+        let s = document.getElementById('inputCategory');
+        if(![...s.options].some(o => o.value === n)) { s.innerHTML += `<option value="${n}">${n}</option>`; }
+        s.value = n;
     }
     
     function openRackModal(type, name = '', limit = 4, loc = '', pType = 'Normal', category = '') {
@@ -833,12 +1084,8 @@
         let itemMoved = (mode === 'item') ? data.find(x => x.id === source)?.code : "Semua item di " + source;
 
         riwayatPindah.push({
-            item: itemMoved,
-            dari: namaDari,
-            ke: dest,
-            operator: opName,
-            tgl: new Date().toLocaleDateString('id-ID'),
-            jam: new Date().toLocaleTimeString('id-ID')
+            item: itemMoved, dari: namaDari, ke: dest, operator: opName,
+            tgl: new Date().toLocaleDateString('id-ID'), jam: new Date().toLocaleTimeString('id-ID')
         });
         db.ref('riwayat_pindah').set(riwayatPindah);
 
@@ -855,13 +1102,13 @@
     
     function renderPindah() {
         let list = document.getElementById('listPindah');
+        if (!list) return;
         list.innerHTML = '';
         let term = document.getElementById('cariPindah') ? document.getElementById('cariPindah').value.toLowerCase() : "";
         let filtered = riwayatPindah.filter(x => (x.item||"").toLowerCase().includes(term) || (x.operator||"").toLowerCase().includes(term));
         filtered.sort((a, b) => new Date(b.tgl + " " + b.jam) - new Date(a.tgl + " " + a.jam));
 
         let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
-        
         uniqueOps.forEach(opNameUpper => {
             let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
             if (pagePindah[opNameUpper] === undefined) pagePindah[opNameUpper] = 0;
@@ -1068,12 +1315,11 @@
                     let isStale = diffDays >= 7;
 
                     let badge = isGlobalOldest ? '<div class="fifo-badge"><span class="animate-flame">🔥</span> PRIORITAS</div>' : '';
-                    if (isCritical) {
-                        badge += ` <div class="critical-badge">⚠️ Critical (Sisa 1)</div>`;
-                    }
-                    if (isStale) {
-                        badge += ` <div class="warning-badge">⚠️ >${diffDays} HARI</div>`;
-                    }
+                    if (isCritical) badge += ` <div class="critical-badge">⚠️ Critical (Sisa 1)</div>`;
+                    if (isStale) badge += ` <div class="warning-badge">⚠️ >${diffDays} HARI</div>`;
+
+                    // 🔥 MENAMPILKAN TANDA CHECK DAN TANGGAL PENGECEKAN TERAKHIR DI KARTU STOK
+                    let checkBadge = x.lastChecked ? `<div style="margin-top:4px; font-size:11px; color:#10b981; font-weight:700;">✅ Tercheck: ${x.lastChecked}</div>` : `<div style="margin-top:4px; font-size:11px; color:var(--text-muted); font-style:italic;">Belum di-check AI</div>`;
 
                     let cardClass = isCritical ? 'item-card critical-stok' : (isStale ? 'item-card warning-stok' : 'item-card');
 
@@ -1097,6 +1343,7 @@
                                 <div style="font-weight:700; font-size:14px; margin-bottom:4px">${x.code}</div>
                                 <div style="font-size:13px; color:var(--text-muted);">Qty: ${x.qty} Kg</div>
                                 <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Masuk: ${x.tgl} (${diffDays}h lalu)</div>
+                                ${checkBadge}
                                 ${actionButtons}
                             </div>`; 
                 });
@@ -1187,12 +1434,10 @@
         
         for(let i = 0; i < jumlah; i++) {
             let uniqueId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            data.push({id: uniqueId, code, qty, tgl, pallet}); 
+            data.push({id: uniqueId, code, qty, tgl, pallet, lastChecked: ""}); 
             let now = new Date();
             riwayatMasuk.push({
-                id: uniqueId,
-                code, qty, tgl, pallet,
-                operator: opName,
+                id: uniqueId, code, qty, tgl, pallet, operator: opName,
                 jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
             });
         }
@@ -1209,10 +1454,7 @@
         if (!confirm("Apakah Anda yakin ingin menghapus item ini?")) return;
         
         let index = data.findIndex(x => x.id === id);
-        if (index === -1) {
-            alert("⚠️ Item tidak ditemukan!");
-            return;
-        }
+        if (index === -1) { alert("⚠️ Item tidak ditemukan!"); return; }
         
         let item = data[index]; 
         let now = new Date(); 
@@ -1225,13 +1467,8 @@
         let backupRiwayatKeluar = [...riwayatKeluar];
 
         riwayatKeluar.push({
-            code: item.code, 
-            qty: item.qty, 
-            tglMasuk: item.tgl, 
-            pallet: item.pallet || '-', 
-            operator: opName, 
-            tglKeluar: now.toISOString().split('T')[0], 
-            jam: jamStr
+            code: item.code, qty: item.qty, tglMasuk: item.tgl, pallet: item.pallet || '-', 
+            operator: opName, tglKeluar: now.toISOString().split('T')[0], jam: jamStr
         }); 
         
         data.splice(index, 1); 
@@ -1240,29 +1477,18 @@
             db.ref('gudang_final').set(data),
             db.ref('riwayat_keluar').set(riwayatKeluar)
         ])
-        .then(() => { 
-            refreshAll();
-            showToast("🗑️ Item berhasil dihapus.");
-        })
+        .then(() => { refreshAll(); showToast("🗑️ Item berhasil dihapus."); })
         .catch((error) => {
             console.error("Gagal menghapus item: ", error);
-            data = backupData;
-            riwayatKeluar = backupRiwayatKeluar;
+            data = backupData; riwayatKeluar = backupRiwayatKeluar;
             refreshAll();
 
             let failedEntry = {
-                code: item.code,
-                qty: item.qty,
-                pallet: item.pallet || '-',
-                operator: opName,
-                tgl: new Date().toLocaleDateString('id-ID'),
-                jam: jamStr,
-                alasan: error.message || "Gagal sinkronisasi"
+                code: item.code, qty: item.qty, pallet: item.pallet || '-', operator: opName,
+                tgl: new Date().toLocaleDateString('id-ID'), jam: jamStr, alasan: error.message || "Gagal sinkronisasi"
             };
-            
             riwayatGagalHapus.push(failedEntry);
             db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus);
-
             alert("❌ Gagal sinkronisasi pusat! Item dikembalikan.");
         });
     }
@@ -1278,9 +1504,7 @@
         let q = prompt("Edit Kg:", item.qty); 
         let t = prompt("Edit Tanggal (YYYY-MM-DD):", item.tgl); 
         if(c && q && t) { 
-            item.code = c.toUpperCase(); 
-            item.qty = q; 
-            item.tgl = t; 
+            item.code = c.toUpperCase(); item.qty = q; item.tgl = t; 
             syncAndRender(); 
         } 
     }
@@ -1309,26 +1533,27 @@
 
     function hapusRiwayatPencarian(i) {
         let currentOp = localStorage.getItem('opName') || '';
-        if (currentOp !== 'Tri') {
-            alert("❌ Akses ditolak! Hanya user Tri yang diizinkan.");
-            return;
-        }
+        if (currentOp !== 'Tri') { alert("❌ Akses ditolak! Hanya user Tri yang diizinkan."); return; }
         if (!confirm("Yakin ingin menghapus catatan pencarian ini?")) return;
         riwayatPencarian.splice(i, 1);
         db.ref('riwayat_pencarian').set(riwayatPencarian).then(() => renderPencarian());
     }
     
-    function exportStokCSV() { let csv = "Code,Qty,Tgl,Pallet\n"; data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet}\n`); let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); }
+    function exportStokCSV() { 
+        let csv = "Code,Qty,Tgl,Pallet,LastChecked\n"; 
+        data.forEach(x => csv += `${x.code},${x.qty},${x.tgl},${x.pallet},${x.lastChecked || '-'}\n`); 
+        let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Data_Stok.csv'; a.click(); 
+    }
     
     function importCSV(e) { 
-        let reader=new FileReader(); 
-        reader.onload=function(e){ 
+        let reader = new FileReader(); 
+        reader.onload = function(e){ 
             e.target.result.split('\n').forEach((line,idx)=>{ 
-                if(idx>0&&line){ 
-                    let [code,qty,tgl,pallet]=line.split(','); 
+                if(idx > 0 && line){ 
+                    let [code,qty,tgl,pallet,lastChecked] = line.split(','); 
                     if(code && qty && tgl && pallet) {
                         let uniqueId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        data.push({id: uniqueId, code: code.trim(), qty: qty.trim(), tgl: tgl.trim(), pallet: pallet.trim()}); 
+                        data.push({id: uniqueId, code: code.trim(), qty: qty.trim(), tgl: tgl.trim(), pallet: pallet.trim(), lastChecked: lastChecked ? lastChecked.trim() : ""}); 
                     }
                 }
             }); 
@@ -1351,13 +1576,13 @@
     
     function renderKeluar() {
         let list = document.getElementById('listKeluar');
+        if (!list) return;
         list.innerHTML = '';
         let term = document.getElementById('cariKeluar') ? document.getElementById('cariKeluar').value.toLowerCase() : "";
         let filtered = riwayatKeluar.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.pallet || "").toLowerCase().includes(term) || (x.tglKeluar || "").includes(term) || (x.tglMasuk || "").includes(term));
         filtered.sort((a, b) => new Date(b.tglKeluar) - new Date(a.tglKeluar));
 
         let uniqueOps = [...new Set(filtered.map(x => (x.operator || 'Tanpa Operator').toUpperCase()))];
-        
         uniqueOps.forEach(opNameUpper => {
             let opItems = filtered.filter(x => (x.operator || 'Tanpa Operator').toUpperCase() === opNameUpper);
             if (pageKeluar[opNameUpper] === undefined) pageKeluar[opNameUpper] = 0;
@@ -1389,6 +1614,7 @@
 
     function renderMasuk() {
         let list = document.getElementById('listMasuk');
+        if (!list) return;
         list.innerHTML = '';
         let term = document.getElementById('cariMasuk') ? document.getElementById('cariMasuk').value.toLowerCase() : "";
         let filtered = riwayatMasuk.filter(x => (x.code || "").toLowerCase().includes(term) || (x.operator || "").toLowerCase().includes(term) || (x.tgl || "").includes(term));
@@ -1472,10 +1698,7 @@
         let filterCriticalOnly = document.getElementById('filterCriticalOnly') ? document.getElementById('filterCriticalOnly').checked : false;
         
         let keluarCounts = {};
-        riwayatKeluar.forEach(x => {
-            let c = (x.code || "").toUpperCase();
-            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
-        });
+        riwayatKeluar.forEach(x => { let c = (x.code || "").toUpperCase(); keluarCounts[c] = (keluarCounts[c] || 0) + 1; });
 
         let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
         allCodes.sort((a, b) => {
@@ -1489,10 +1712,8 @@
             let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
             let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
             let isCritical = (currentStockQty === 1 || currentCount === 1);
-
             let matchesTerm = code.toLowerCase().includes(term);
             if (!matchesTerm) return false;
-
             if (filterCriticalOnly) return isCritical;
             return true;
         });
@@ -1510,13 +1731,10 @@
         let rowsHTML = displayCodes.map(code => {
             let currentStockQty = data.filter(x => (x.code || "").toUpperCase() === code).reduce((sum, item) => sum + Number(item.qty || 0), 0);
             let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
-
             let limitData = itemLimits[code] || { min: '-' };
             let min = limitData.min;
 
             let statusBadge = `<span style="background:var(--card-glass); color:var(--text-muted); padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700;">⚪ BELUM DISET</span>`;
-            let rowStyle = "";
-
             if (currentStockQty === 1 || currentCount === 1) {
                 statusBadge = `<span style="background:rgba(253, 224, 71, 0.25); color:var(--primary); padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; border:1px solid var(--primary);">⚠️ CRITICAL</span>`;
             } else if (min !== '-') {
@@ -1528,7 +1746,7 @@
                 }
             }
 
-            return `<tr style="${rowStyle} border-bottom: 1px solid var(--border-color);">
+            return `<tr style="border-bottom: 1px solid var(--border-color);">
                         <td style="padding: 12px; font-weight: 700;">${code}</td>
                         <td style="padding: 12px;">${currentStockQty} Kg (${currentCount} Pcs)</td>
                         <td style="padding: 12px;">${min} Kg</td>
@@ -1544,13 +1762,13 @@
         if (totalPages > 1) {
             paginationHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
                         <button class="btn-action" onclick="changePageLimit(-1)">Prev</button>
-                        <span style="font-size:11px; font-weight:700;">${pageLimit['MAIN']+1}/${totalPages}</span>
+                        <span style="font-size:11px; font-weight:700; color:var(--text-main);">${pageLimit['MAIN']+1}/${totalPages}</span>
                         <button class="btn-action" onclick="changePageLimit(1)">Next</button>
                     </div>`;
         }
 
         list.innerHTML = `
-            <div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px;">
+            <div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px; backdrop-filter: blur(12px);">
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: var(--primary); color: white; text-align: left;">
@@ -1561,9 +1779,7 @@
                             <th style="padding: 12px; text-align: center;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${rowsHTML}
-                    </tbody>
+                    <tbody>${rowsHTML}</tbody>
                 </table>
             </div>
             ${paginationHTML}
@@ -1575,10 +1791,7 @@
         let filterCriticalOnly = document.getElementById('filterCriticalOnly') ? document.getElementById('filterCriticalOnly').checked : false;
         
         let keluarCounts = {};
-        riwayatKeluar.forEach(x => {
-            let c = (x.code || "").toUpperCase();
-            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
-        });
+        riwayatKeluar.forEach(x => { let c = (x.code || "").toUpperCase(); keluarCounts[c] = (keluarCounts[c] || 0) + 1; });
 
         let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
         allCodes.sort((a, b) => {
@@ -1610,17 +1823,9 @@
         let code = document.getElementById('limitCode').value.trim().toUpperCase();
         let min = document.getElementById('limitMin').value !== '' ? parseInt(document.getElementById('limitMin').value) : '-';
 
-        if (!code) {
-            alert("⚠️ Harap masukkan Kode Item terlebih dahulu!");
-            return;
-        }
+        if (!code) { alert("⚠️ Harap masukkan Kode Item terlebih dahulu!"); return; }
 
-        itemLimits[code] = { 
-            min: min, 
-            updatedBy: opName, 
-            updatedAt: new Date().toLocaleDateString('id-ID') 
-        };
-
+        itemLimits[code] = { min: min, updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
         db.ref('item_limits').set(itemLimits).then(() => {
             showToast("✅ Limit item berhasil disimpan!");
             document.getElementById('limitCode').value = '';
@@ -1632,25 +1837,17 @@
     function autoSetLimitDariQtyTerkecil() {
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
-
         if (!confirm("⚡ Apakah Anda ingin mengisi otomatis limit minimum semua item berdasarkan Qty terkecil dari setiap item di stok saat ini?")) return;
 
         let uniqueCodes = [...new Set(data.map(x => (x.code || "").toUpperCase()))].filter(Boolean);
-        if (uniqueCodes.length === 0) {
-            alert("⚠️ Tidak ada data stok di gudang saat ini!");
-            return;
-        }
+        if (uniqueCodes.length === 0) { alert("⚠️ Tidak ada data stok di gudang saat ini!"); return; }
 
         uniqueCodes.forEach(code => {
             let itemEntries = data.filter(x => (x.code || "").toUpperCase() === code);
             let qtys = itemEntries.map(x => Number(x.qty || 0)).filter(q => q > 0);
             if (qtys.length > 0) {
                 let minQty = Math.min(...qtys);
-                itemLimits[code] = {
-                    min: minQty,
-                    updatedBy: opName,
-                    updatedAt: new Date().toLocaleDateString('id-ID')
-                };
+                itemLimits[code] = { min: minQty, updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
             }
         });
 
@@ -1663,31 +1860,19 @@
     function hapusItemLimit(code) {
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
-
         if (!confirm(`Yakin ingin menghapus pengaturan limit untuk item ${code}?`)) return;
         delete itemLimits[code];
-        db.ref('item_limits').set(itemLimits).then(() => {
-            showToast("🗑️ Limit item dihapus.");
-            renderLimit();
-        });
+        db.ref('item_limits').set(itemLimits).then(() => { showToast("🗑️ Limit item dihapus."); renderLimit(); });
     }
 
     function editLimitPrompt(code, currentMin) {
         let mMin = prompt(`Edit Min Limit untuk ${code}:`, currentMin === '-' ? '' : currentMin);
         if (mMin === null) return;
-
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
 
-        itemLimits[code] = {
-            min: mMin !== '' ? parseInt(mMin) : '-',
-            updatedBy: opName,
-            updatedAt: new Date().toLocaleDateString('id-ID')
-        };
-        db.ref('item_limits').set(itemLimits).then(() => {
-            showToast("✅ Limit item diperbarui!");
-            renderLimit();
-        });
+        itemLimits[code] = { min: mMin !== '' ? parseInt(mMin) : '-', updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
+        db.ref('item_limits').set(itemLimits).then(() => { showToast("✅ Limit item diperbarui!"); renderLimit(); });
     }
 
     function setFilterKL(type) {
@@ -1709,20 +1894,10 @@
         let status = document.getElementById('klStatus').value;
         let tgl = document.getElementById('klTgl').value;
 
-        if (!code || !qty || !tgl) {
-            alert("⚠️ Harap lengkapi Kode Item, Qty (Kg), dan Tanggal!");
-            return;
-        }
+        if (!code || !qty || !tgl) { alert("⚠️ Harap lengkapi Kode Item, Qty (Kg), dan Tanggal!"); return; }
 
         let uniqueId = 'kl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        dataKurangLebih.push({
-            id: uniqueId,
-            code: code,
-            qty: qty,
-            status: status,
-            tgl: tgl,
-            operator: opName
-        });
+        dataKurangLebih.push({ id: uniqueId, code: code, qty: qty, status: status, tgl: tgl, operator: opName });
 
         db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
             showToast("✅ Berhasil menambahkan item kurang/lebih!");
@@ -1736,38 +1911,23 @@
     function hapusKurangLebih(id) {
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
-
         if (!confirm("Yakin ingin menghapus item ini dari daftar?")) return;
         dataKurangLebih = dataKurangLebih.filter(x => x.id !== id);
-        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
-            showToast("🗑️ Item berhasil dihapus.");
-            renderKurangLebih();
-        });
+        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => { showToast("🗑️ Item berhasil dihapus."); renderKurangLebih(); });
     }
 
     function editKurangLebih(id) {
         let opName = localStorage.getItem('opName') || '';
         if (!opName) { gantiOperator(); return; }
-
         let item = dataKurangLebih.find(x => x.id === id);
         if (!item) return;
 
-        let newCode = prompt("Edit Kode Item:", item.code);
-        if (newCode === null) return;
-        let newQty = prompt("Edit Qty (Kg):", item.qty);
-        if (newQty === null) return;
-        let newStatus = prompt("Edit Status (Ketik 'Kurang' atau 'Lebih'):", item.status);
-        if (newStatus === null) return;
+        let newCode = prompt("Edit Kode Item:", item.code); if (newCode === null) return;
+        let newQty = prompt("Edit Qty (Kg):", item.qty); if (newQty === null) return;
+        let newStatus = prompt("Edit Status (Ketik 'Kurang' atau 'Lebih'):", item.status); if (newStatus === null) return;
 
-        item.code = newCode.trim().toUpperCase();
-        item.qty = newQty.trim();
-        item.status = newStatus.trim();
-        item.operator = opName;
-
-        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
-            showToast("✅ Data berhasil diperbarui!");
-            renderKurangLebih();
-        });
+        item.code = newCode.trim().toUpperCase(); item.qty = newQty.trim(); item.status = newStatus.trim(); item.operator = opName;
+        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => { showToast("✅ Data berhasil diperbarui!"); renderKurangLebih(); });
     }
 
     function renderKurangLebih() {
@@ -1779,7 +1939,6 @@
         let filtered = dataKurangLebih.filter(item => {
             let matchesTerm = (item.code || "").toLowerCase().includes(term) || (item.operator || "").toLowerCase().includes(term);
             if (!matchesTerm) return false;
-
             if (currentFilterKL === 'kurang' && item.status.toLowerCase() !== 'kurang') return false;
             if (currentFilterKL === 'lebih' && item.status.toLowerCase() !== 'lebih') return false;
             return true;
@@ -1798,15 +1957,11 @@
         let displayItems = filtered.slice(start, start + itemsPerPage);
 
         let rowsHTML = displayItems.map(item => {
-            let badge = "";
-            let rowStyle = "";
-            if (item.status.toLowerCase() === 'kurang') {
-                badge = `<span style="background:rgba(239, 68, 68, 0.25); color:#ef4444; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; border:1px solid #ef4444;">⚠️ Kurang</span>`;
-            } else {
-                badge = `<span style="background:rgba(253, 224, 71, 0.25); color:var(--primary); padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; border:1px solid var(--primary);">📦 Lebih</span>`;
-            }
+            let badge = item.status.toLowerCase() === 'kurang' 
+                ? `<span style="background:rgba(239, 68, 68, 0.25); color:#ef4444; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; border:1px solid #ef4444;">⚠️ Kurang</span>`
+                : `<span style="background:rgba(253, 224, 71, 0.25); color:var(--primary); padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; border:1px solid var(--primary);">📦 Lebih</span>`;
 
-            return `<tr style="${rowStyle} border-bottom: 1px solid var(--border-color);">
+            return `<tr style="border-bottom: 1px solid var(--border-color);">
                         <td style="padding: 12px; font-weight: 700;">${item.code}</td>
                         <td style="padding: 12px;">${item.qty} Kg</td>
                         <td style="padding: 12px;">${badge}</td>
@@ -1828,7 +1983,7 @@
         }
 
         list.innerHTML = `
-            <div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px;">
+            <div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px; backdrop-filter: blur(12px);">
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: var(--primary); color: white; text-align: left;">
@@ -1839,9 +1994,7 @@
                             <th style="padding: 12px; text-align: center;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${rowsHTML}
-                    </tbody>
+                    <tbody>${rowsHTML}</tbody>
                 </table>
             </div>
             ${paginationHTML}
@@ -1864,23 +2017,14 @@
 
     function exportKurangLebihCSV() {
         let csv = "Kode Item,Qty (Kg),Status,Tanggal,Operator\n";
-        dataKurangLebih.forEach(item => {
-            csv += `${item.code},${item.qty},${item.status},${item.tgl},${item.operator || '-'}\n`;
-        });
-        let a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-        a.download = 'Stok_Kurang_Dan_Lebih.csv';
-        a.click();
+        dataKurangLebih.forEach(item => { csv += `${item.code},${item.qty},${item.status},${item.tgl},${item.operator || '-'}\n`; });
+        let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Stok_Kurang_Dan_Lebih.csv'; a.click();
     }
 
     function exportLimitCSV() {
         let csv = "Kode Item,Stok Saat Ini (Kg),Min Limit,Status\n";
-        
         let keluarCounts = {};
-        riwayatKeluar.forEach(x => {
-            let c = (x.code || "").toUpperCase();
-            keluarCounts[c] = (keluarCounts[c] || 0) + 1;
-        });
+        riwayatKeluar.forEach(x => { let c = (x.code || "").toUpperCase(); keluarCounts[c] = (keluarCounts[c] || 0) + 1; });
 
         let allCodes = [...new Set([...Object.keys(itemLimits), ...data.map(x => x.code)])];
         allCodes.sort((a, b) => {
@@ -1895,18 +2039,14 @@
             let currentCount = data.filter(x => (x.code || "").toUpperCase() === code).length;
             let limitData = itemLimits[code] || { min: '-' };
             let status = "Belum Diset";
-            if (currentStockQty === 1 || currentCount === 1) {
-                status = "Critical (Sisa 1)";
-            } else if (limitData.min !== '-') {
+            if (currentStockQty === 1 || currentCount === 1) status = "Critical (Sisa 1)";
+            else if (limitData.min !== '-') {
                 if (currentStockQty < Number(limitData.min)) status = "Kurang";
                 else status = "Aman";
             }
             csv += `${code},${currentStockQty},${limitData.min},${status}\n`;
         });
-        let a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-        a.download = 'Limit_Barang.csv';
-        a.click();
+        let a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Limit_Barang.csv'; a.click();
     }
 
     function renderPencarian() {
@@ -1937,7 +2077,7 @@
 
             let colDiv = document.createElement('div');
             colDiv.style.background = "var(--card-glass)";
-            colDiv.style.backdropFilter = "blur(20px)";
+            colDiv.style.backdropFilter = "blur(12px)";
             colDiv.style.border = "1px solid var(--border-color)";
             colDiv.style.borderRadius = "var(--radius)";
             colDiv.style.padding = "18px";
@@ -1952,17 +2092,13 @@
             } else {
                 html += displayItems.map(x => {
                     let actualIndex = riwayatPencarian.indexOf(x);
-                    
                     let konfirmasiBadge = x.konfirmasi === "Ya" 
                         ? `<span style="background:rgba(16, 185, 129, 0.25); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">Konfirmasi: Ya</span>` 
                         : (x.konfirmasi === "Tidak" 
                             ? `<span style="background:rgba(239, 68, 68, 0.25); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">Konfirmasi: Tidak</span>`
                             : `<span style="background:var(--card-glass); color:var(--text-muted); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">-</span>`);
                     
-                    let tglHapusInfo = (x.konfirmasi === "Ya" && x.tglHapus) 
-                        ? `<br><small style="color:#10b981;">📅 Tgl Dihapus: <b>${x.tglHapus}</b></small>` 
-                        : ""; 
-
+                    let tglHapusInfo = (x.konfirmasi === "Ya" && x.tglHapus) ? `<br><small style="color:#10b981;">📅 Tgl Dihapus: <b>${x.tglHapus}</b></small>` : ""; 
                     let deleteBtnHTML = (currentOp === 'Tri') ? `<button class="btn-action btn-delete" style="margin-top:6px; width:100%;" onclick="hapusRiwayatPencarian(${actualIndex})">🗑️ Hapus Catatan</button>` : '';
                     
                     return `<div class="item-card" style="margin-bottom:8px;">
@@ -1978,7 +2114,7 @@
             if (totalPages > 1) {
                 html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:10px;">
                             <button class="btn-action" style="width:auto" onclick="changePageCari('${opNameUpper}', -1)">Prev</button>
-                            <span style="font-size:11px; font-weight:700;">${pageCari[opNameUpper]+1}/${totalPages}</span>
+                            <span style="font-size:11px; font-weight:700; color:var(--text-main);">${pageCari[opNameUpper]+1}/${totalPages}</span>
                             <button class="btn-action" style="width:auto" onclick="changePageCari('${opNameUpper}', 1)">Next</button>
                         </div>`;
             }

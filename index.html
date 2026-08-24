@@ -802,7 +802,7 @@
                 });
 
                 // Sinkronkan pembaruan tanggal check ke Firebase
-                db.ref('gudang_final').set(data);
+                saveGudangToFirebase();
 
                 html += `<div style="margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--text);">Ringkasan: ${matchCount} dari ${rackItems.length} item terverifikasi & tanggal check diperbarui.</div>`;
             }
@@ -1000,7 +1000,37 @@
         }
     });
 
-    db.ref('gudang_final').on('value', s => { data = Object.values(s.val() || {}); updateAutofill(); render(); renderPencarian(); renderLimit(); checkActivePopupValidity(); });
+    // 🔥 FUNGSI HELPER UNTUK MENGUBAH ARRAY MENJADI OBJEK BER-ID DI FIREBASE
+    function saveGudangToFirebase() {
+        let dataObj = {};
+        data.forEach(item => {
+            if (!item.id) {
+                item.id = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            dataObj[item.id] = item;
+        });
+        return db.ref('gudang_final').set(dataObj);
+    }
+
+    // 🔥 LISTENER DATA GUDANG YANG AMAN DARI BUG SHIFTING ARRAY
+    db.ref('gudang_final').on('value', s => {
+        let val = s.val() || {};
+        if (Array.isArray(val)) {
+            data = val.filter(Boolean);
+        } else {
+            data = Object.keys(val).map(key => {
+                let item = val[key];
+                if (!item.id) item.id = key;
+                return item;
+            });
+        }
+        updateAutofill(); 
+        render(); 
+        renderPencarian(); 
+        renderLimit(); 
+        checkActivePopupValidity(); 
+    });
+
     db.ref('riwayat_keluar').on('value', s => { riwayatKeluar = Object.values(s.val() || {}); renderKeluar(); renderPencarian(); renderLimit(); });
     db.ref('riwayat_masuk').on('value', s => { riwayatMasuk = Object.values(s.val() || {}); renderMasuk(); renderPencarian(); });
     db.ref('riwayat_pindah').on('value', s => { riwayatPindah = Object.values(s.val() || {}); renderPindah(); });
@@ -1167,7 +1197,7 @@
             if(p) {
                 data.forEach(item => { if(item.pallet === oldName) item.pallet = name; });
                 p.name = name; p.category = category; p.limit = limit; p.lokasi = loc; p.type = type; 
-                db.ref('gudang_final').set(data);
+                saveGudangToFirebase();
             }
         } else { 
             for(let i = 0; i < qty; i++) {
@@ -1474,7 +1504,7 @@
         data.splice(index, 1); 
 
         Promise.all([
-            db.ref('gudang_final').set(data),
+            saveGudangToFirebase(),
             db.ref('riwayat_keluar').set(riwayatKeluar)
         ])
         .then(() => { refreshAll(); showToast("🗑️ Item berhasil dihapus."); })
@@ -1511,7 +1541,7 @@
     
     function syncAndRender() {
         Promise.all([
-            db.ref('gudang_final').set(data),
+            saveGudangToFirebase(),
             db.ref('riwayat_keluar').set(riwayatKeluar),
             db.ref('riwayat_masuk').set(riwayatMasuk)
         ])
@@ -1557,7 +1587,7 @@
                     }
                 }
             }); 
-            db.ref('gudang_final').set(data); 
+            saveGudangToFirebase(); 
         }; 
         reader.readAsText(e.target.files[0]); 
     }

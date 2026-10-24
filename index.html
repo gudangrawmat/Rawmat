@@ -16,7 +16,6 @@
         :root { 
             --primary: #4f46e5; 
             --primary-glow: rgba(79, 70, 229, 0.25);
-            /* Tema Putih Transparan Lembut untuk Gigin & Dede (Tidak Silau) */
             --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             --text: #1e293b;
             --text-muted: #64748b;
@@ -130,6 +129,7 @@
         .status-indicator { position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 11px; z-index: 1000; box-shadow: var(--shadow); background: var(--card-glass); backdrop-filter: blur(12px); color: var(--text); }
         .online { color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
         .offline { color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .syncing { color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
 
         .header-box { 
             background: rgba(79, 70, 229, 0.85); backdrop-filter: blur(12px);
@@ -168,7 +168,7 @@
         .area-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .pallet-card { padding: 20px; border-radius: var(--radius); border-left: 6px solid var(--primary); box-shadow: var(--shadow); }
         .ibc-wide { grid-column: 1 / -1; border-left-color: #8b5cf6; } 
-        .pallet-title { font-weight: 700; font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
+        .pallet-title { font-weight: 700; font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; color: var(--text); flex-wrap: wrap; gap: 8px; }
         .btn-action { background: var(--card-glass); border: 1px solid var(--border-color); padding: 7px 12px; border-radius: 10px; cursor: pointer; font-size: 12px; margin-left: 4px; color: var(--text-muted); transition: all 0.2s; }
         .btn-action:hover { color: var(--primary); border-color: var(--primary); background: rgba(79, 70, 229, 0.15); }
         .btn-delete { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
@@ -364,7 +364,7 @@
         <div id="area" class="area-grid"></div>
         <div class="summary-box">
             <div style="font-weight:bold; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:14px; cursor:pointer; display:flex; justify-content:space-between;" onclick="toggleSummary()">
-                Total Stok (Hasil Filter) <span id="summaryIcon">▼</span>
+                Total Stok & Berat (Hasil Filter) <span id="summaryIcon">▼</span>
             </div>
             <div id="ringkasan"></div>
         </div>
@@ -462,7 +462,7 @@
 </div>
 
 <script>
-    const APP_VERSION = "1.0.56"; 
+    const APP_VERSION = "1.0.58"; 
 
     const canvas = document.getElementById('fireworksCanvas');
     const ctx = canvas.getContext('2d');
@@ -582,7 +582,6 @@
             body.classList.add('cyberpunk-mode');
             if(btnAiScanTri) btnAiScanTri.style.display = 'inline-block';
         } else {
-            // Untuk Gigin dan Dede menggunakan tema putih transparan lembut (tidak silau)
             body.classList.remove('cyberpunk-mode');
             if(btnAiScanTri) btnAiScanTri.style.display = 'none';
         }
@@ -606,6 +605,9 @@
     let unlockedItems = []; 
     let currentFilterKL = 'all';
     let pendingSearches = []; 
+
+    // 🔥 FITUR OFFLINE QUEUE (ANTREAN OFFLINE)
+    let offlineQueue = JSON.parse(localStorage.getItem('gudangOfflineQueue') || '[]');
 
     const operatorPasswords = {
         "Tri": "1234",
@@ -671,9 +673,81 @@
                 }
             });
         }
+        updateOnlineStatus();
     });
 
-    // 📸 FITUR KAMERA LIVE & AI SCAN DENGAN AUTO CHECK & UPDATE TANGGAL
+    function updateOnlineStatus() {
+        let s = document.getElementById('statusIndicator');
+        if (navigator.onLine) {
+            if (offlineQueue.length > 0) {
+                s.className = 'status-indicator syncing';
+                s.innerText = `🔄 Syncing (${offlineQueue.length})...`;
+                processOfflineQueue();
+            } else {
+                s.className = 'status-indicator online';
+                s.innerText = '● Online';
+            }
+        } else {
+            s.className = 'status-indicator offline';
+            s.innerText = `● Offline (${offlineQueue.length} pending)`;
+        }
+    }
+
+    window.addEventListener('online', () => {
+        updateOnlineStatus();
+        showToast("🌐 Koneksi terhubung kembali, menyinkronkan data...");
+    });
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // 🔥 FUNGSI PEMROSESAN ANTREAN OFFLINE KETIKA KONEKSI PULIH
+    function processOfflineQueue() {
+        if (!navigator.onLine || offlineQueue.length === 0) return;
+
+        let task = offlineQueue.shift(); // Ambil tugas pertama
+        localStorage.setItem('gudangOfflineQueue', JSON.stringify(offlineQueue));
+
+        let refPath = task.path;
+        let payload = task.data;
+
+        db.ref(refPath).set(payload).then(() => {
+            updateOnlineStatus();
+            if (offlineQueue.length > 0) {
+                processOfflineQueue(); // Lanjut sinkronisasi berikutnya
+            } else {
+                showToast("✅ Semua data offline berhasil disinkronkan ke server!");
+                refreshAll();
+            }
+        }).catch(err => {
+            console.error("Gagal sync queue: ", err);
+            // Kembalikan tugas ke antrean jika gagal lagi
+            offlineQueue.unshift(task);
+            localStorage.setItem('gudangOfflineQueue', JSON.stringify(offlineQueue));
+        });
+    }
+
+    // 🔥 FUNGSI AMAN UNTUK MENYIMPAN KE FIREBASE / OFFLINE QUEUE
+    function safeDatabaseSave(path, payload, successMessage = "✅ Berhasil disimpan!") {
+        if (navigator.onLine) {
+            db.ref(path).set(payload).then(() => {
+                showToast(successMessage);
+                refreshAll();
+            }).catch(err => {
+                console.error("Firebase error, masuk ke offline queue: ", err);
+                pushToQueue(path, payload, successMessage);
+            });
+        } else {
+            pushToQueue(path, payload, successMessage);
+        }
+    }
+
+    function pushToQueue(path, payload, successMessage) {
+        offlineQueue.push({ path: path, data: payload, msg: successMessage });
+        localStorage.setItem('gudangOfflineQueue', JSON.stringify(offlineQueue));
+        updateOnlineStatus();
+        showToast("⚠️ Jaringan terputus! Data disimpan lokal dan akan sinkron saat online.");
+        refreshAll();
+    }
+
     function openAiScanModal() {
         let currentOp = localStorage.getItem('opName');
         if (currentOp !== 'Tri') {
@@ -784,7 +858,6 @@
 
                     if (isFoundInPhoto) {
                         matchCount++;
-                        // 🔥 OTOMATIS UPDATE TANGGAL CHECK TERBARU KE DATABASE ITEM
                         item.lastChecked = todayStr;
                     }
 
@@ -801,7 +874,6 @@
                              </div>`;
                 });
 
-                // Sinkronkan pembaruan tanggal check ke Firebase
                 saveGudangToFirebase();
 
                 html += `<div style="margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--text);">Ringkasan: ${matchCount} dari ${rackItems.length} item terverifikasi & tanggal check diperbarui.</div>`;
@@ -908,14 +980,7 @@
             riwayatPencarian.push(searchData);
         }
         
-        db.ref('riwayat_pencarian').set(riwayatPencarian);
-
-        if (isUsed) {
-            showToast(`✅ Item ${code} dicatat dipakai.`);
-        } else {
-            showToast(`ℹ️ Item ${code} dikonfirmasi tidak dipakai.`);
-        }
-
+        safeDatabaseSave('riwayat_pencarian', riwayatPencarian, "✅ Konfirmasi pencarian disimpan.");
         removeSearchNotification(id);
     }
 
@@ -967,14 +1032,6 @@
         render();
     }
 
-    function updateOnlineStatus() {
-        let s = document.getElementById('statusIndicator');
-        if (navigator.onLine) { s.className = 'status-indicator online'; s.innerText = '● Online'; }
-        else { s.className = 'status-indicator offline'; s.innerText = '● Offline'; }
-    }
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-
     function updateClock() {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
@@ -1000,7 +1057,6 @@
         }
     });
 
-    // 🔥 FUNGSI HELPER UNTUK MENGUBAH ARRAY MENJADI OBJEK BER-ID DI FIREBASE
     function saveGudangToFirebase() {
         let dataObj = {};
         data.forEach(item => {
@@ -1009,10 +1065,9 @@
             }
             dataObj[item.id] = item;
         });
-        return db.ref('gudang_final').set(dataObj);
+        safeDatabaseSave('gudang_final', dataObj, "✅ Data stok tersimpan!");
     }
 
-    // 🔥 LISTENER DATA GUDANG YANG AMAN DARI BUG SHIFTING ARRAY
     db.ref('gudang_final').on('value', s => {
         let val = s.val() || {};
         if (Array.isArray(val)) {
@@ -1117,7 +1172,7 @@
             item: itemMoved, dari: namaDari, ke: dest, operator: opName,
             tgl: new Date().toLocaleDateString('id-ID'), jam: new Date().toLocaleTimeString('id-ID')
         });
-        db.ref('riwayat_pindah').set(riwayatPindah);
+        safeDatabaseSave('riwayat_pindah', riwayatPindah);
 
         if (mode === 'rack') {
             data.forEach(item => { if (item.pallet === source) item.pallet = dest; });
@@ -1180,7 +1235,8 @@
     function hapusPindah(i) {
         if (!confirm("Yakin ingin menghapus riwayat pindah ini?")) return;
         riwayatPindah.splice(i, 1);
-        db.ref('riwayat_pindah').set(riwayatPindah).then(() => renderPindah());
+        safeDatabaseSave('riwayat_pindah', riwayatPindah);
+        renderPindah();
     }
     
     function saveRackData() {
@@ -1205,7 +1261,8 @@
                 palletList.push({name: finalName, category, limit, lokasi: loc, type}); 
             }
         }
-        db.ref('pallets_config').set(palletList); closeModal('rackModal');
+        safeDatabaseSave('pallets_config', palletList);
+        closeModal('rackModal');
     }
     
     function showPage(p) {
@@ -1262,6 +1319,8 @@
         let term = document.getElementById('cari').value.toLowerCase();
         let hideEmpty = document.getElementById('hideEmpty').checked;
         let totalStok = {};
+        
+        let categoryTotalsKg = {};
 
         if (currentFilter === null && term === "") {
             document.getElementById('ringkasan').innerHTML = '';
@@ -1290,6 +1349,12 @@
             let prefix = getCategory(p);
             let items = data.filter(x => x.pallet == p.name);
             
+            let totalKgInPallet = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+
+            if (!categoryTotalsKg[prefix]) categoryTotalsKg[prefix] = { pcs: 0, kg: 0 };
+            categoryTotalsKg[prefix].pcs += items.length;
+            categoryTotalsKg[prefix].kg += totalKgInPallet;
+
             if (hideEmpty && items.length === 0) return;
             if (term !== "" && items.length === 0) return; 
             if (term === "" && currentFilter !== null && currentFilter !== 'All' && currentFilter !== prefix) return;
@@ -1323,7 +1388,15 @@
             let card = document.createElement('div');
             card.className = (p.type === 'IBC') ? 'pallet-card ibc-wide' : 'pallet-card';
             
-            let html = `<div class="pallet-title">${p.name} (${items.length}/${p.limit||4}) <div><button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button><button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button><button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button></div></div>`;
+            let html = `<div class="pallet-title">
+                            <span>${p.name} (${items.length}/${p.limit||4})</span>
+                            <span style="font-size:12px; font-weight:600; color:var(--primary); background:var(--card-glass); padding:2px 8px; border-radius:6px; border:1px solid var(--border-color);">⚖️ ${totalKgInPallet} Kg</span>
+                            <div>
+                                <button class="btn-action" onclick="showMoveModal('rack', '${p.name}')">🔗</button>
+                                <button class="btn-action" onclick="openRackModal('edit', '${p.name}', ${p.limit||4}, '${p.lokasi||''}', '${p.type||'Normal'}', '${p.category||''}')">✏️</button>
+                                <button class="btn-action btn-delete" onclick="deletePallet('${p.name}')">❌</button>
+                            </div>
+                        </div>`;
             
             if (items.length === 0) {
                 html += `<div style="text-align:center; color:var(--text-muted); padding:20px 0; font-size:12px; font-style:italic;">Rak Kosong</div>`;
@@ -1348,7 +1421,6 @@
                     if (isCritical) badge += ` <div class="critical-badge">⚠️ Critical (Sisa 1)</div>`;
                     if (isStale) badge += ` <div class="warning-badge">⚠️ >${diffDays} HARI</div>`;
 
-                    // 🔥 MENAMPILKAN TANDA CHECK DAN TANGGAL PENGECEKAN TERAKHIR DI KARTU STOK
                     let checkBadge = x.lastChecked ? `<div style="margin-top:4px; font-size:11px; color:#10b981; font-weight:700;">✅ Tercheck: ${x.lastChecked}</div>` : `<div style="margin-top:4px; font-size:11px; color:var(--text-muted); font-style:italic;">Belum di-check AI</div>`;
 
                     let cardClass = isCritical ? 'item-card critical-stok' : (isStale ? 'item-card warning-stok' : 'item-card');
@@ -1392,7 +1464,42 @@
         });
         area.appendChild(fragment);
         
-        let rTableHTML = `<div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px;">
+        let rTableHTML = `<div style="font-weight:700; margin-bottom:10px; color:var(--primary);">📊 Total Berat Berdasarkan Area / Kategori:</div>`;
+        rTableHTML += `<div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: var(--primary); color: white; text-align: left;">
+                        <th style="padding: 12px;">Area / Kategori Rak</th>
+                        <th style="padding: 12px; text-align: center;">Total Pcs Item</th>
+                        <th style="padding: 12px; text-align: right;">Total Berat (Kg)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        let sortedCats = Object.keys(categoryTotalsKg).sort();
+        let grandTotalKg = 0;
+        let grandTotalPcs = 0;
+        
+        sortedCats.forEach(cat => {
+            let itemCat = categoryTotalsKg[cat];
+            grandTotalKg += itemCat.kg;
+            grandTotalPcs += itemCat.pcs;
+            rTableHTML += `<tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px; font-weight: bold;">${cat}</td>
+                <td style="padding: 12px; text-align: center;">${itemCat.pcs} Pcs</td>
+                <td style="padding: 12px; text-align: right; font-weight: 600; color: var(--primary);">${itemCat.kg} Kg</td>
+            </tr>`;
+        });
+
+        rTableHTML += `<tr style="background: rgba(79, 70, 229, 0.1); font-weight: bold;">
+            <td style="padding: 12px;">GRAND TOTAL KESELURUHAN</td>
+            <td style="padding: 12px; text-align: center;">${grandTotalPcs} Pcs</td>
+            <td style="padding: 12px; text-align: right; color: var(--primary);">${grandTotalKg} Kg</td>
+        </tr>`;
+        rTableHTML += `</tbody></table></div>`;
+
+        rTableHTML += `<div style="font-weight:700; margin-bottom:10px; color:var(--primary);">📋 Rincian Total Stok per Kode Item:</div>`;
+        rTableHTML += `<div style="overflow-x: auto; background: var(--card-glass); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); padding: 5px;">
             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
                     <tr style="background: var(--primary); color: white; text-align: left;">
@@ -1416,6 +1523,7 @@
             });
         }
         rTableHTML += `</tbody></table></div>`;
+        
         document.getElementById('ringkasan').innerHTML = rTableHTML;
     }
     
@@ -1438,7 +1546,7 @@
             return;
         }
         palletList = palletList.filter(p => p.name != n); 
-        db.ref('pallets_config').set(palletList); 
+        safeDatabaseSave('pallets_config', palletList);
     }
     
     function tambah() { 
@@ -1503,24 +1611,23 @@
         
         data.splice(index, 1); 
 
-        Promise.all([
-            saveGudangToFirebase(),
-            db.ref('riwayat_keluar').set(riwayatKeluar)
-        ])
-        .then(() => { refreshAll(); showToast("🗑️ Item berhasil dihapus."); })
-        .catch((error) => {
-            console.error("Gagal menghapus item: ", error);
-            data = backupData; riwayatKeluar = backupRiwayatKeluar;
-            refreshAll();
+        // Gunakan penyimpanan aman dengan antrean offline jika koneksi putus
+        let dataObj = {};
+        data.forEach(it => { if(!it.id) it.id = 'item_' + Math.random(); dataObj[it.id] = it; });
 
-            let failedEntry = {
-                code: item.code, qty: item.qty, pallet: item.pallet || '-', operator: opName,
-                tgl: new Date().toLocaleDateString('id-ID'), jam: jamStr, alasan: error.message || "Gagal sinkronisasi"
-            };
-            riwayatGagalHapus.push(failedEntry);
-            db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus);
-            alert("❌ Gagal sinkronisasi pusat! Item dikembalikan.");
-        });
+        if (navigator.onLine) {
+            Promise.all([
+                db.ref('gudang_final').set(dataObj),
+                db.ref('riwayat_keluar').set(riwayatKeluar)
+            ]).then(() => { refreshAll(); showToast("🗑️ Item berhasil dihapus."); })
+            .catch(error => {
+                pushToQueue('gudang_final', dataObj, "🗑️ Item dihapus (Offline mode).");
+                pushToQueue('riwayat_keluar', riwayatKeluar, "");
+            });
+        } else {
+            pushToQueue('gudang_final', dataObj, "🗑️ Item dihapus (Offline mode).");
+            pushToQueue('riwayat_keluar', riwayatKeluar, "");
+        }
     }
     
     function editItem(id) { 
@@ -1540,25 +1647,42 @@
     }
     
     function syncAndRender() {
-        Promise.all([
-            saveGudangToFirebase(),
-            db.ref('riwayat_keluar').set(riwayatKeluar),
-            db.ref('riwayat_masuk').set(riwayatMasuk)
-        ])
-        .then(() => { refreshAll(); })
-        .catch((error) => { console.error("Gagal sinkronisasi: ", error); alert("❌ Gagal menyimpan ke server!"); });
+        let dataObj = {};
+        data.forEach(item => {
+            if (!item.id) item.id = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            dataObj[item.id] = item;
+        });
+
+        if (navigator.onLine) {
+            Promise.all([
+                db.ref('gudang_final').set(dataObj),
+                db.ref('riwayat_keluar').set(riwayatKeluar),
+                db.ref('riwayat_masuk').set(riwayatMasuk)
+            ]).then(() => { refreshAll(); })
+            .catch((error) => { 
+                pushToQueue('gudang_final', dataObj);
+                pushToQueue('riwayat_keluar', riwayatKeluar);
+                pushToQueue('riwayat_masuk', riwayatMasuk);
+            });
+        } else {
+            pushToQueue('gudang_final', dataObj);
+            pushToQueue('riwayat_keluar', riwayatKeluar);
+            pushToQueue('riwayat_masuk', riwayatMasuk);
+        }
     }
 
     function hapusRiwayat(i) { 
         if (!confirm("Yakin ingin menghapus riwayat ini?")) return;
         riwayatKeluar.splice(i, 1); 
-        db.ref('riwayat_keluar').set(riwayatKeluar).then(() => renderKeluar()); 
+        safeDatabaseSave('riwayat_keluar', riwayatKeluar);
+        renderKeluar(); 
     }
 
     function hapusRiwayatGagal(i) {
         if (!confirm("Yakin ingin menghapus catatan riwayat gagal ini?")) return;
         riwayatGagalHapus.splice(i, 1);
-        db.ref('riwayat_gagal_hapus').set(riwayatGagalHapus).then(() => renderGagal());
+        safeDatabaseSave('riwayat_gagal_hapus', riwayatGagalHapus);
+        renderGagal();
     }
 
     function hapusRiwayatPencarian(i) {
@@ -1566,7 +1690,8 @@
         if (currentOp !== 'Tri') { alert("❌ Akses ditolak! Hanya user Tri yang diizinkan."); return; }
         if (!confirm("Yakin ingin menghapus catatan pencarian ini?")) return;
         riwayatPencarian.splice(i, 1);
-        db.ref('riwayat_pencarian').set(riwayatPencarian).then(() => renderPencarian());
+        safeDatabaseSave('riwayat_pencarian', riwayatPencarian);
+        renderPencarian();
     }
     
     function exportStokCSV() { 
@@ -1601,7 +1726,8 @@
     function hapusMasuk(i) { 
         if (!confirm("Yakin ingin menghapus riwayat masuk ini?")) return;
         riwayatMasuk.splice(i, 1); 
-        db.ref('riwayat_masuk').set(riwayatMasuk).then(() => renderMasuk()); 
+        safeDatabaseSave('riwayat_masuk', riwayatMasuk);
+        renderMasuk(); 
     }
     
     function renderKeluar() {
@@ -1856,12 +1982,10 @@
         if (!code) { alert("⚠️ Harap masukkan Kode Item terlebih dahulu!"); return; }
 
         itemLimits[code] = { min: min, updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
-        db.ref('item_limits').set(itemLimits).then(() => {
-            showToast("✅ Limit item berhasil disimpan!");
-            document.getElementById('limitCode').value = '';
-            document.getElementById('limitMin').value = '';
-            renderLimit();
-        });
+        safeDatabaseSave('item_limits', itemLimits);
+        document.getElementById('limitCode').value = '';
+        document.getElementById('limitMin').value = '';
+        renderLimit();
     }
 
     function autoSetLimitDariQtyTerkecil() {
@@ -1881,10 +2005,8 @@
             }
         });
 
-        db.ref('item_limits').set(itemLimits).then(() => {
-            showToast("✅ Berhasil mengisi otomatis min limit!");
-            renderLimit();
-        });
+        safeDatabaseSave('item_limits', itemLimits);
+        renderLimit();
     }
 
     function hapusItemLimit(code) {
@@ -1892,7 +2014,8 @@
         if (!opName) { gantiOperator(); return; }
         if (!confirm(`Yakin ingin menghapus pengaturan limit untuk item ${code}?`)) return;
         delete itemLimits[code];
-        db.ref('item_limits').set(itemLimits).then(() => { showToast("🗑️ Limit item dihapus."); renderLimit(); });
+        safeDatabaseSave('item_limits', itemLimits);
+        renderLimit();
     }
 
     function editLimitPrompt(code, currentMin) {
@@ -1902,7 +2025,8 @@
         if (!opName) { gantiOperator(); return; }
 
         itemLimits[code] = { min: mMin !== '' ? parseInt(mMin) : '-', updatedBy: opName, updatedAt: new Date().toLocaleDateString('id-ID') };
-        db.ref('item_limits').set(itemLimits).then(() => { showToast("✅ Limit item diperbarui!"); renderLimit(); });
+        safeDatabaseSave('item_limits', itemLimits);
+        renderLimit();
     }
 
     function setFilterKL(type) {
@@ -1929,13 +2053,11 @@
         let uniqueId = 'kl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         dataKurangLebih.push({ id: uniqueId, code: code, qty: qty, status: status, tgl: tgl, operator: opName });
 
-        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => {
-            showToast("✅ Berhasil menambahkan item kurang/lebih!");
-            document.getElementById('klCode').value = '';
-            document.getElementById('klQty').value = '';
-            document.getElementById('klCode').focus();
-            renderKurangLebih();
-        });
+        safeDatabaseSave('stok_kurang_lebih', dataKurangLebih);
+        document.getElementById('klCode').value = '';
+        document.getElementById('klQty').value = '';
+        document.getElementById('klCode').focus();
+        renderKurangLebih();
     }
 
     function hapusKurangLebih(id) {
@@ -1943,7 +2065,8 @@
         if (!opName) { gantiOperator(); return; }
         if (!confirm("Yakin ingin menghapus item ini dari daftar?")) return;
         dataKurangLebih = dataKurangLebih.filter(x => x.id !== id);
-        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => { showToast("🗑️ Item berhasil dihapus."); renderKurangLebih(); });
+        safeDatabaseSave('stok_kurang_lebih', dataKurangLebih);
+        renderKurangLebih();
     }
 
     function editKurangLebih(id) {
@@ -1957,7 +2080,8 @@
         let newStatus = prompt("Edit Status (Ketik 'Kurang' atau 'Lebih'):", item.status); if (newStatus === null) return;
 
         item.code = newCode.trim().toUpperCase(); item.qty = newQty.trim(); item.status = newStatus.trim(); item.operator = opName;
-        db.ref('stok_kurang_lebih').set(dataKurangLebih).then(() => { showToast("✅ Data berhasil diperbarui!"); renderKurangLebih(); });
+        safeDatabaseSave('stok_kurang_lebih', dataKurangLebih);
+        renderKurangLebih();
     }
 
     function renderKurangLebih() {
